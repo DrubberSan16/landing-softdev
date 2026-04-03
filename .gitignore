@@ -1,0 +1,6 @@
+**/dist/
+backend/coverage/
+**/node_modules/**
+frontend/.vscode/
+**/.env
+!**/.env.example
