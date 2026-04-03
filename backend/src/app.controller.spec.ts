@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { DatabaseService } from './common/database/database.service';
 
 describe('AppController', () => {
   let appController: AppController;
@@ -14,10 +15,16 @@ describe('AppController', () => {
         SWAGGER_PATH: 'docs',
         SWAGGER_VERSION: '1.0.0',
         NODE_ENV: 'test',
+        DB_SSL_ENABLED: 'true',
       };
 
       return values[key] ?? defaultValue;
     },
+  };
+
+  const databaseServiceMock = {
+    isConfigured: () => true,
+    healthcheck: jest.fn().mockResolvedValue(true),
   };
 
   beforeEach(async () => {
@@ -28,6 +35,10 @@ describe('AppController', () => {
         {
           provide: ConfigService,
           useValue: configServiceMock,
+        },
+        {
+          provide: DatabaseService,
+          useValue: databaseServiceMock,
         },
       ],
     }).compile();
@@ -44,10 +55,11 @@ describe('AppController', () => {
       });
     });
 
-    it('should return backend health', () => {
-      expect(appController.getHealth()).toMatchObject({
+    it('should return backend health', async () => {
+      await expect(appController.getHealth()).resolves.toMatchObject({
         status: 'ok',
         environment: 'test',
+        databaseStatus: 'connected',
       });
     });
   });

@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { PostgresExceptionFilter } from '../common/filters/postgres-exception.filter';
 
 type RuntimeConfig = {
   apiPrefix: string;
@@ -21,7 +22,10 @@ export function configureApp(app: INestApplication): RuntimeConfig {
     'Documentacion base para la landing y futuras APIs.',
   );
   const swaggerVersion = configService.get<string>('SWAGGER_VERSION', '1.0.0');
-  const frontendUrl = configService.get<string>('FRONTEND_URL', 'http://localhost:5173');
+  const frontendUrl = configService.get<string>(
+    'FRONTEND_URL',
+    'http://localhost:5173',
+  );
 
   const allowedOrigins = frontendUrl
     .split(',')
@@ -41,12 +45,22 @@ export function configureApp(app: INestApplication): RuntimeConfig {
       forbidNonWhitelisted: true,
     }),
   );
+  app.useGlobalFilters(new PostgresExceptionFilter());
 
   const swaggerConfig = new DocumentBuilder()
     .setTitle(swaggerTitle)
     .setDescription(swaggerDescription)
     .setVersion(swaggerVersion)
     .addServer(`http://localhost:${port}/${apiPrefix}`)
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'Session',
+        description: 'Bearer token emitido por /admin/auth/login',
+      },
+      'session-token',
+    )
     .build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);

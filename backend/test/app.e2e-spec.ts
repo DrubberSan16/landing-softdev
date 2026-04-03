@@ -22,7 +22,7 @@ describe('AppController (e2e)', () => {
     return request(app.getHttpServer())
       .get('/api/health')
       .expect(200)
-      .expect(({ body }) => {
+      .expect(({ body }: { body: { status: string; appName: string } }) => {
         expect(body.status).toBe('ok');
         expect(body.appName).toBe('Landing Softdev API');
       });

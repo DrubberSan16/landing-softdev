@@ -4,3 +4,4 @@ backend/coverage/
 frontend/.vscode/
 **/.env
 !**/.env.example
+**.sql

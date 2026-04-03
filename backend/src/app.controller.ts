@@ -19,7 +19,7 @@ export class AppController {
   @Get('health')
   @ApiOperation({ summary: 'Verificar el estado del backend' })
   @ApiOkResponse({ type: HealthResponseDto })
-  getHealth(): HealthResponseDto {
+  async getHealth(): Promise<HealthResponseDto> {
     return this.appService.getHealth();
   }
 }
