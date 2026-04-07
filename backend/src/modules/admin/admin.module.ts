@@ -21,6 +21,7 @@ import { TechnologiesController } from './technologies/technologies.controller';
 import { TechnologiesService } from './technologies/technologies.service';
 import { AuditController } from './audit/audit.controller';
 import { AuditService } from './audit/audit.service';
+import { InternalUsersController } from './users/internal-users.controller';
 import { UsersController } from './users/users.controller';
 import { UsersService } from './users/users.service';
 import { SessionAuthGuard } from './auth/session-auth.guard';
@@ -34,6 +35,7 @@ import { SessionAuthGuard } from './auth/session-auth.guard';
     ProjectsController,
     ContactsController,
     UsersController,
+    InternalUsersController,
     RolesController,
     NotificationsController,
     MetricsController,

@@ -36,8 +36,7 @@ export class AppService {
 
   async getHealth(): Promise<HealthResponseDto> {
     const dbConfigured = this.databaseService.isConfigured();
-    const sslEnabled =
-      this.configService.get<string>('DB_SSL_ENABLED', 'true') === 'true';
+    const sslEnabled = this.readBooleanConfig('DB_SSL_ENABLED', true);
     let databaseStatus = dbConfigured ? 'configured' : 'missing_configuration';
 
     if (dbConfigured) {
@@ -61,5 +60,15 @@ export class AppService {
       databaseSslEnabled: sslEnabled,
       timestamp: new Date().toISOString(),
     };
+  }
+
+  private readBooleanConfig(key: string, defaultValue: boolean): boolean {
+    const raw = this.configService.get<string | boolean>(key, defaultValue);
+
+    if (typeof raw === 'boolean') {
+      return raw;
+    }
+
+    return String(raw).toLowerCase() === 'true';
   }
 }

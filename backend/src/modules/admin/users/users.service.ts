@@ -152,6 +152,95 @@ export class UsersService {
   }
 
   async create(payload: CreateUserDto, admin: CurrentAdmin, request: Request) {
+    return this.createUser(payload, admin, request, 'admin_users.create');
+  }
+
+  async createInternal(payload: CreateUserDto, request: Request) {
+    return this.createUser(
+      payload,
+      null,
+      request,
+      'admin_users.create.internal',
+    );
+  }
+
+  async update(
+    publicId: string,
+    payload: UpdateUserDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    return this.updateUser(
+      publicId,
+      payload,
+      admin,
+      request,
+      'admin_users.update',
+    );
+  }
+
+  async updateInternal(
+    publicId: string,
+    payload: UpdateUserDto,
+    request: Request,
+  ) {
+    return this.updateUser(
+      publicId,
+      payload,
+      null,
+      request,
+      'admin_users.update.internal',
+    );
+  }
+
+  async updateRoles(
+    publicId: string,
+    payload: UpdateUserRolesDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const existing = await this.databaseService.one<{
+      id: number;
+      fullName: string;
+    }>(
+      `
+        SELECT id, full_name AS "fullName"
+        FROM landing_core.tb_admin_users
+        WHERE public_id = $1::uuid
+          AND deleted_at IS NULL
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro el usuario administrativo.');
+    }
+
+    await this.databaseService.transaction(async (client) => {
+      await this.replaceUserRoles(existing.id, payload.roleCodes, client);
+    });
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'admin_users.roles.update',
+      entityName: 'tb_admin_user_roles',
+      entityId: existing.id,
+      description: `Roles actualizados para ${existing.fullName}`,
+      newData: {
+        roleCodes: payload.roleCodes,
+      },
+      request,
+    });
+
+    return this.findOne(publicId);
+  }
+
+  private async createUser(
+    payload: CreateUserDto,
+    admin: CurrentAdmin | null,
+    request: Request,
+    actionCode: string,
+  ) {
     return this.databaseService.transaction(async (client) => {
       const passwordHash = await hash(payload.password, 10);
       const fullName = `${payload.firstName} ${payload.lastName}`.trim();
@@ -196,8 +285,8 @@ export class UsersService {
       }
 
       await this.auditService.log({
-        adminUserId: admin.id,
-        actionCode: 'admin_users.create',
+        adminUserId: admin?.id ?? null,
+        actionCode,
         entityName: 'tb_admin_users',
         entityId: created?.id ?? null,
         description: `Usuario administrativo creado: ${fullName}`,
@@ -213,11 +302,12 @@ export class UsersService {
     });
   }
 
-  async update(
+  private async updateUser(
     publicId: string,
     payload: UpdateUserDto,
-    admin: CurrentAdmin,
+    admin: CurrentAdmin | null,
     request: Request,
+    actionCode: string,
   ) {
     const existing = await this.databaseService.one<{
       id: number;
@@ -285,8 +375,8 @@ export class UsersService {
       }
 
       await this.auditService.log({
-        adminUserId: admin.id,
-        actionCode: 'admin_users.update',
+        adminUserId: admin?.id ?? null,
+        actionCode,
         entityName: 'tb_admin_users',
         entityId: existing.id,
         description: `Usuario administrativo actualizado: ${existing.fullName}`,
@@ -300,48 +390,6 @@ export class UsersService {
 
       return this.findOne(publicId);
     });
-  }
-
-  async updateRoles(
-    publicId: string,
-    payload: UpdateUserRolesDto,
-    admin: CurrentAdmin,
-    request: Request,
-  ) {
-    const existing = await this.databaseService.one<{
-      id: number;
-      fullName: string;
-    }>(
-      `
-        SELECT id, full_name AS "fullName"
-        FROM landing_core.tb_admin_users
-        WHERE public_id = $1::uuid
-          AND deleted_at IS NULL
-      `,
-      [publicId],
-    );
-
-    if (!existing) {
-      throw new NotFoundException('No se encontro el usuario administrativo.');
-    }
-
-    await this.databaseService.transaction(async (client) => {
-      await this.replaceUserRoles(existing.id, payload.roleCodes, client);
-    });
-
-    await this.auditService.log({
-      adminUserId: admin.id,
-      actionCode: 'admin_users.roles.update',
-      entityName: 'tb_admin_user_roles',
-      entityId: existing.id,
-      description: `Roles actualizados para ${existing.fullName}`,
-      newData: {
-        roleCodes: payload.roleCodes,
-      },
-      request,
-    });
-
-    return this.findOne(publicId);
   }
 
   private async replaceUserRoles(

@@ -1,0 +1,51 @@
+<svg width="1200" height="760" viewBox="0 0 1200 760" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="objectiveBg" x1="86" y1="72" x2="1068" y2="712" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171626"/>
+      <stop offset="1" stop-color="#090912"/>
+    </linearGradient>
+    <linearGradient id="objectiveAccent" x1="206" y1="146" x2="860" y2="622" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6B3CFF"/>
+      <stop offset="0.5" stop-color="#A700FF"/>
+      <stop offset="1" stop-color="#FF00C8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="760" rx="48" fill="url(#objectiveBg)"/>
+  <circle cx="164" cy="150" r="124" fill="#6B3CFF" fill-opacity="0.14"/>
+  <circle cx="1032" cy="610" r="160" fill="#FF00C8" fill-opacity="0.1"/>
+
+  <rect x="88" y="90" width="1024" height="580" rx="34" fill="#11111D" stroke="rgba(255,255,255,0.1)"/>
+
+  <rect x="132" y="132" width="936" height="106" rx="28" fill="#0F101A"/>
+  <rect x="168" y="168" width="188" height="18" rx="9" fill="#F6F3FF" fill-opacity="0.86"/>
+  <rect x="168" y="202" width="328" height="18" rx="9" fill="#FFFFFF" fill-opacity="0.12"/>
+  <rect x="818" y="162" width="206" height="44" rx="22" fill="#6B3CFF" fill-opacity="0.18"/>
+
+  <rect x="132" y="276" width="260" height="304" rx="30" fill="#0E0F19"/>
+  <rect x="164" y="312" width="116" height="16" rx="8" fill="#F6F3FF" fill-opacity="0.8"/>
+  <rect x="164" y="346" width="182" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.1"/>
+  <rect x="164" y="398" width="194" height="132" rx="22" fill="#141628"/>
+  <circle cx="260" cy="444" r="42" fill="url(#objectiveAccent)" fill-opacity="0.28"/>
+  <rect x="214" y="494" width="92" height="18" rx="9" fill="#F6F3FF" fill-opacity="0.82"/>
+
+  <rect x="470" y="276" width="260" height="304" rx="30" fill="#0E0F19"/>
+  <rect x="502" y="312" width="116" height="16" rx="8" fill="#F6F3FF" fill-opacity="0.8"/>
+  <rect x="502" y="346" width="182" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.1"/>
+  <path d="M544 482C544 438 579 404 622 404H678V442C678 486 643 520 600 520H544V482Z" fill="url(#objectiveAccent)" fill-opacity="0.24"/>
+  <path d="M654 404H678C721 404 756 438 756 482V520H700C657 520 622 486 622 442V436" fill="#F6F3FF" fill-opacity="0.18"/>
+
+  <rect x="808" y="276" width="260" height="304" rx="30" fill="#0E0F19"/>
+  <rect x="840" y="312" width="116" height="16" rx="8" fill="#F6F3FF" fill-opacity="0.8"/>
+  <rect x="840" y="346" width="182" height="16" rx="8" fill="#FFFFFF" fill-opacity="0.1"/>
+  <rect x="850" y="404" width="176" height="46" rx="23" fill="#FF00C8" fill-opacity="0.2"/>
+  <rect x="850" y="468" width="146" height="46" rx="23" fill="#6B3CFF" fill-opacity="0.2"/>
+  <rect x="850" y="532" width="116" height="46" rx="23" fill="#FFFFFF" fill-opacity="0.12"/>
+
+  <path d="M392 430H470" stroke="#F6F3FF" stroke-opacity="0.28" stroke-width="14" stroke-linecap="round"/>
+  <path d="M730 430H808" stroke="#F6F3FF" stroke-opacity="0.28" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="392" cy="430" r="16" fill="#6B3CFF"/>
+  <circle cx="470" cy="430" r="16" fill="#A700FF"/>
+  <circle cx="730" cy="430" r="16" fill="#A700FF"/>
+  <circle cx="808" cy="430" r="16" fill="#FF00C8"/>
+</svg>

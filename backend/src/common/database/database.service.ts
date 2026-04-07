@@ -8,11 +8,11 @@ export class DatabaseService implements OnModuleDestroy {
   private readonly pool: Pool;
 
   constructor(private readonly configService: ConfigService) {
-    const sslEnabled =
-      this.configService.get<string>('DB_SSL_ENABLED', 'true') === 'true';
-    const rejectUnauthorized =
-      this.configService.get<string>('DB_SSL_REJECT_UNAUTHORIZED', 'false') ===
-      'true';
+    const sslEnabled = this.readBooleanConfig('DB_SSL_ENABLED', true);
+    const rejectUnauthorized = this.readBooleanConfig(
+      'DB_SSL_REJECT_UNAUTHORIZED',
+      false,
+    );
     const ca = this.readSslValue('DB_SSL_CA') ?? undefined;
     const cert = this.readSslValue('DB_SSL_CERT') ?? undefined;
     const key = this.readSslValue('DB_SSL_KEY') ?? undefined;
@@ -20,10 +20,10 @@ export class DatabaseService implements OnModuleDestroy {
     const ssl = sslEnabled
       ? {
           rejectUnauthorized,
-          ca,
-          cert,
-          key,
-          servername,
+          ...(ca ? { ca } : {}),
+          ...(cert ? { cert } : {}),
+          ...(key ? { key } : {}),
+          ...(servername ? { servername } : {}),
         }
       : undefined;
 
@@ -107,5 +107,15 @@ export class DatabaseService implements OnModuleDestroy {
     }
 
     return raw.replace(/\\n/g, '\n');
+  }
+
+  private readBooleanConfig(key: string, defaultValue: boolean): boolean {
+    const raw = this.configService.get<string | boolean>(key, defaultValue);
+
+    if (typeof raw === 'boolean') {
+      return raw;
+    }
+
+    return String(raw).toLowerCase() === 'true';
   }
 }
