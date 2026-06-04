@@ -4,16 +4,20 @@ import { appConfig } from '../services/config'
 
 const navigation = [
   {
-    label: 'Conocenos',
+    label: 'Inicio',
+    to: { path: '/', hash: '#inicio' },
+  },
+  {
+    label: 'Beneficios',
     to: { path: '/', hash: '#conocenos' },
   },
   {
-    label: 'Servicios',
-    to: { path: '/', hash: '#servicios' },
+    label: 'Proceso',
+    to: { path: '/', hash: '#proceso' },
   },
   {
-    label: 'Proyectos',
-    to: { path: '/', hash: '#proyectos' },
+    label: 'Soluciones',
+    to: { path: '/', hash: '#servicios' },
   },
   {
     label: 'Tecnologias',
@@ -62,14 +66,14 @@ const navigation = [
 
       <div>
         <p>
-          Plataforma comercial y operativa para exhibir demos, captar leads y gestionar
-          el portafolio digital de una fabrica de software.
+          Software a medida para digitalizar procesos, automatizar tareas y ordenar la
+          operacion de empresas que quieren crecer con tecnologia clara.
         </p>
       </div>
 
       <div class="site-footer__links">
-        <RouterLink :to="{ path: '/', hash: '#conocenos' }">Conocenos</RouterLink>
-        <RouterLink :to="{ path: '/', hash: '#proyectos' }">Proyectos</RouterLink>
+        <RouterLink :to="{ path: '/', hash: '#conocenos' }">Beneficios</RouterLink>
+        <RouterLink :to="{ path: '/', hash: '#proceso' }">Proceso</RouterLink>
         <RouterLink :to="{ path: '/', hash: '#contacto' }">Contacto</RouterLink>
         <RouterLink to="/admin/login">Login admin</RouterLink>
       </div>

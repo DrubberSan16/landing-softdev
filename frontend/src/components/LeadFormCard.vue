@@ -11,7 +11,7 @@ const props = defineProps({
   description: {
     type: String,
     default:
-      'Convierte la landing en una herramienta comercial real. Deja tus datos y te contactaremos.',
+      'Cuentanos que proceso quieres digitalizar y te contactaremos con una ruta clara.',
   },
   projects: {
     type: Array,
@@ -37,7 +37,7 @@ const form = ref({
   email: '',
   phone: '',
   preferredContactMethod: 'email',
-  subject: 'Quiero una demo o una propuesta similar',
+  subject: 'Quiero digitalizar un proceso de mi empresa',
   message: '',
   budgetRange: '',
   projectSlug: props.initialProjectSlug,
@@ -65,14 +65,14 @@ async function handleSubmit() {
     })
 
     successMessage.value =
-      'Tu solicitud ya quedo registrada. El equipo comercial podra verla desde el panel administrativo.'
+      'Tu solicitud ya quedo registrada. El equipo comercial podra revisarla y contactarte pronto.'
     form.value = {
       fullName: '',
       companyName: '',
       email: '',
       phone: '',
       preferredContactMethod: 'email',
-      subject: 'Quiero una demo o una propuesta similar',
+      subject: 'Quiero digitalizar un proceso de mi empresa',
       message: '',
       budgetRange: '',
       projectSlug: props.initialProjectSlug,
@@ -90,7 +90,7 @@ async function handleSubmit() {
 <template>
   <section class="form-card" :class="{ 'form-card--compact': compact }">
     <div class="form-card__header">
-      <p class="section__eyebrow">Lead funnel</p>
+      <p class="section__eyebrow">Contacto directo</p>
       <h2>{{ title }}</h2>
       <p>{{ description }}</p>
     </div>
@@ -126,9 +126,9 @@ async function handleSubmit() {
       </label>
 
       <label>
-        <span>Proyecto relacionado</span>
+        <span>Proceso relacionado</span>
         <select v-model="form.projectSlug">
-          <option value="">Sin proyecto especifico</option>
+          <option value="">Sin proceso especifico</option>
           <option
             v-for="project in selectProjects"
             :key="project.value"
@@ -161,7 +161,7 @@ async function handleSubmit() {
 
       <label class="checkbox-field">
         <input v-model="form.wantsNotifications" type="checkbox" />
-        <span>Deseo recibir seguimiento sobre demos y propuestas.</span>
+        <span>Deseo recibir seguimiento sobre mi solicitud y propuestas.</span>
       </label>
 
       <div class="lead-form__actions">
