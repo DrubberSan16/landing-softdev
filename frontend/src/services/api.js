@@ -118,6 +118,24 @@ export const adminApi = {
       query,
     )
   },
+  createProject(payload) {
+    return request('/admin/projects', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateProject(publicId, payload) {
+    return request(`/admin/projects/${publicId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
   getCategories() {
     return request('/admin/categories', {
       headers: {
@@ -125,11 +143,47 @@ export const adminApi = {
       },
     })
   },
+  createCategory(payload) {
+    return request('/admin/categories', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateCategory(publicId, payload) {
+    return request(`/admin/categories/${publicId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
   getTechnologies() {
     return request('/admin/technologies', {
       headers: {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
+    })
+  },
+  createTechnology(payload) {
+    return request('/admin/technologies', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateTechnology(publicId, payload) {
+    return request(`/admin/technologies/${publicId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
     })
   },
   getContacts(query) {
@@ -143,6 +197,15 @@ export const adminApi = {
       query,
     )
   },
+  updateContact(publicId, payload) {
+    return request(`/admin/contact-requests/${publicId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
   getUsers(query) {
     return request(
       '/admin/users',
@@ -153,6 +216,24 @@ export const adminApi = {
       },
       query,
     )
+  },
+  createUser(payload) {
+    return request('/admin/users', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateUser(publicId, payload) {
+    return request(`/admin/users/${publicId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
   },
   getRoles() {
     return request('/admin/roles', {
@@ -224,6 +305,24 @@ export const adminApi = {
       },
       query,
     )
+  },
+  updateNotificationQueue(id, payload) {
+    return request(`/admin/notifications/queue/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateNotificationPreference(id, payload) {
+    return request(`/admin/notifications/preferences/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
   },
   getAuditLogs(query) {
     return request(

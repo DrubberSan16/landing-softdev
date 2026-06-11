@@ -16,7 +16,17 @@ defineProps({
     type: String,
     default: 'No hay registros para mostrar.',
   },
+  editable: {
+    type: Boolean,
+    default: false,
+  },
+  actionLabel: {
+    type: String,
+    default: 'Editar',
+  },
 })
+
+const emit = defineEmits(['edit'])
 </script>
 
 <template>
@@ -51,6 +61,14 @@ defineProps({
           <span v-if="item.badge" class="status-badge">{{ item.badge }}</span>
           <span v-else-if="item.value !== undefined">{{ item.value }}</span>
           <span v-else-if="item.slug">{{ item.slug }}</span>
+          <button
+            v-if="editable && item.canEdit !== false"
+            class="button button--secondary admin-list__action"
+            type="button"
+            @click="emit('edit', item)"
+          >
+            {{ actionLabel }}
+          </button>
         </div>
       </article>
     </div>

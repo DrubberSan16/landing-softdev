@@ -994,6 +994,32 @@ textarea {
   line-height: 1.7;
 }
 
+.admin-page__summary {
+  display: grid;
+  justify-items: end;
+  gap: 12px;
+}
+
+.admin-maintenance-card {
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.maintenance-form select[multiple] {
+  min-height: 138px;
+}
+
+.maintenance-form__checkbox {
+  align-self: end;
+  min-height: 54px;
+  padding: 14px 0;
+}
+
+.maintenance-form__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .admin-list {
   display: grid;
   gap: 12px;
@@ -1023,6 +1049,12 @@ textarea {
   justify-items: end;
   color: var(--muted);
   text-align: right;
+}
+
+.admin-list__action {
+  min-height: 36px;
+  padding: 0.58rem 0.9rem;
+  font-size: 0.86rem;
 }
 
 .status-badge {
@@ -1238,6 +1270,10 @@ textarea {
     grid-template-columns: 1fr;
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .admin-page__summary {
+    justify-items: start;
   }
 
   .brand {

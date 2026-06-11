@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminPanelList from '../components/admin/AdminPanelList.vue'
 import StatCard from '../components/StatCard.vue'
@@ -15,6 +15,59 @@ const moduleState = ref({
   stats: [],
   sections: [],
 })
+const saving = ref(false)
+const successMessage = ref('')
+const formFeedback = ref('')
+const formOptions = ref({
+  categories: [],
+  technologies: [],
+  roles: [],
+  users: [],
+})
+const formState = ref({
+  open: false,
+  mode: 'create',
+  type: '',
+  item: null,
+  values: {},
+})
+
+const statusOptions = {
+  boolean: [
+    { label: 'Activo', value: true },
+    { label: 'Inactivo', value: false },
+  ],
+  project: [
+    { label: 'Borrador', value: 'draft' },
+    { label: 'Publicado', value: 'published' },
+    { label: 'Archivado', value: 'archived' },
+  ],
+  visibility: [
+    { label: 'Publico', value: 'public' },
+    { label: 'Privado', value: 'private' },
+    { label: 'Oculto', value: 'hidden' },
+  ],
+  user: [
+    { label: 'Activo', value: 'active' },
+    { label: 'Inactivo', value: 'inactive' },
+    { label: 'Bloqueado', value: 'blocked' },
+  ],
+  contact: [
+    { label: 'Nuevo', value: 'new' },
+    { label: 'En proceso', value: 'in_progress' },
+    { label: 'Contactado', value: 'contacted' },
+    { label: 'Ganado', value: 'won' },
+    { label: 'Perdido', value: 'lost' },
+    { label: 'Cerrado', value: 'closed' },
+  ],
+  notification: [
+    { label: 'Pendiente', value: 'pending' },
+    { label: 'Procesando', value: 'processing' },
+    { label: 'Enviada', value: 'sent' },
+    { label: 'Fallida', value: 'failed' },
+    { label: 'Cancelada', value: 'cancelled' },
+  ],
+}
 
 function formatDate(value) {
   if (!value) {
@@ -35,9 +88,412 @@ function buildStats(definitions) {
   }))
 }
 
+function toSlug(value) {
+  return value
+    .toString()
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+function toDateTimeLocal(value) {
+  if (!value) {
+    return ''
+  }
+
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return ''
+  }
+
+  const offsetDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return offsetDate.toISOString().slice(0, 16)
+}
+
+function optionFromName(item) {
+  return {
+    label: item.name || item.fullName || item.email || item.code,
+    value: item.publicId || item.code || item.id,
+  }
+}
+
+function categoryOptions() {
+  return formOptions.value.categories.map(optionFromName)
+}
+
+function technologyOptions() {
+  return formOptions.value.technologies.map(optionFromName)
+}
+
+function roleOptions() {
+  return formOptions.value.roles.map((role) => ({
+    label: role.name,
+    value: role.code,
+  }))
+}
+
+function userOptions() {
+  return formOptions.value.users.map((user) => ({
+    label: `${user.fullName} (${user.email})`,
+    value: user.publicId,
+  }))
+}
+
+function withEditMeta(item, type = '') {
+  return {
+    ...item,
+    maintenanceType: type,
+    canEdit: true,
+  }
+}
+
+const maintenanceConfigs = {
+  projects: {
+    canCreate: true,
+    createLabel: 'Crear proyecto',
+    createTitle: 'Nuevo proyecto demo',
+    editTitle: (item) => `Editar ${item.title}`,
+    fields: () => [
+      { name: 'title', label: 'Titulo', required: true },
+      { name: 'slug', label: 'Slug', required: true, deriveFrom: 'title', transform: toSlug },
+      { name: 'shortDescription', label: 'Descripcion corta', type: 'textarea', required: true, full: true },
+      { name: 'demoUrl', label: 'URL del demo', type: 'url', required: true },
+      { name: 'categoryPublicId', label: 'Categoria', type: 'select', options: categoryOptions, emptyLabel: 'Sin categoria', nullable: true },
+      { name: 'technologyPublicIds', label: 'Tecnologias', type: 'select', multiple: true, options: technologyOptions, fromItem: (item) => item.technologies?.map((tech) => tech.publicId) || [] },
+      { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.project, default: 'draft', required: true },
+      { name: 'visibility', label: 'Visibilidad', type: 'select', options: () => statusOptions.visibility, default: 'public', required: true },
+      { name: 'isFeatured', label: 'Destacado en landing', type: 'checkbox', default: false },
+      { name: 'sortOrder', label: 'Orden', type: 'number', default: 0 },
+      { name: 'versionLabel', label: 'Version', nullable: true },
+      { name: 'clientName', label: 'Cliente', nullable: true },
+      { name: 'businessSector', label: 'Sector', nullable: true },
+      { name: 'coverImageUrl', label: 'Imagen principal', type: 'url', nullable: true, full: true },
+      { name: 'fullDescription', label: 'Descripcion completa', type: 'textarea', nullable: true, full: true },
+      { name: 'metaTitle', label: 'Meta titulo', nullable: true },
+      { name: 'metaDescription', label: 'Meta descripcion', type: 'textarea', nullable: true, full: true },
+    ],
+    create: (payload) => adminApi.createProject(payload),
+    update: (item, payload) => adminApi.updateProject(item.publicId, payload),
+  },
+  categories: {
+    canCreate: true,
+    createLabel: 'Crear categoria',
+    createTitle: 'Nueva categoria',
+    editTitle: (item) => `Editar ${item.name}`,
+    fields: () => [
+      { name: 'name', label: 'Nombre', required: true },
+      { name: 'slug', label: 'Slug', required: true, deriveFrom: 'name', transform: toSlug },
+      { name: 'description', label: 'Descripcion', type: 'textarea', nullable: true, full: true },
+      { name: 'icon', label: 'Icono', nullable: true },
+      { name: 'sortOrder', label: 'Orden', type: 'number', default: 0 },
+      { name: 'status', label: 'Activa', type: 'checkbox', default: true },
+    ],
+    create: (payload) => adminApi.createCategory(payload),
+    update: (item, payload) => adminApi.updateCategory(item.publicId, payload),
+  },
+  technologies: {
+    canCreate: true,
+    createLabel: 'Crear tecnologia',
+    createTitle: 'Nueva tecnologia',
+    editTitle: (item) => `Editar ${item.name}`,
+    fields: () => [
+      { name: 'name', label: 'Nombre', required: true },
+      { name: 'slug', label: 'Slug', required: true, deriveFrom: 'name', transform: toSlug },
+      { name: 'description', label: 'Descripcion', type: 'textarea', nullable: true, full: true },
+      { name: 'icon', label: 'Icono', nullable: true },
+      { name: 'officialUrl', label: 'URL oficial', type: 'url', nullable: true },
+      { name: 'colorHex', label: 'Color', type: 'color', default: '#42B883', nullable: true },
+      { name: 'status', label: 'Activa', type: 'checkbox', default: true },
+    ],
+    create: (payload) => adminApi.createTechnology(payload),
+    update: (item, payload) => adminApi.updateTechnology(item.publicId, payload),
+  },
+  contacts: {
+    editTitle: (item) => `Actualizar ${item.fullName}`,
+    fields: () => [
+      { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.contact, required: true },
+      { name: 'assignedToPublicId', label: 'Responsable', type: 'select', options: userOptions, emptyLabel: 'Sin responsable', nullable: true },
+      { name: 'firstResponseAt', label: 'Primera respuesta', type: 'datetime-local', nullable: true },
+      { name: 'closedAt', label: 'Cierre', type: 'datetime-local', nullable: true },
+      { name: 'adminNotes', label: 'Notas internas', type: 'textarea', nullable: true, full: true },
+    ],
+    update: (item, payload) => adminApi.updateContact(item.publicId, payload),
+  },
+  users: {
+    canCreate: true,
+    createLabel: 'Crear usuario',
+    createTitle: 'Nuevo usuario administrativo',
+    editTitle: (item) => `Editar ${item.fullName}`,
+    fields: (mode) => [
+      { name: 'firstName', label: 'Nombre', required: true },
+      { name: 'lastName', label: 'Apellido', required: true },
+      { name: 'email', label: 'Correo', type: 'email', required: true },
+      { name: 'phone', label: 'Telefono', nullable: true },
+      { name: 'password', label: mode === 'create' ? 'Contrasena' : 'Nueva contrasena', type: 'password', required: mode === 'create', omitWhenEmpty: mode === 'edit' },
+      { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.user, default: 'active', required: true },
+      { name: 'roleCodes', label: 'Roles', type: 'select', multiple: true, options: roleOptions, fromItem: (item) => item.roles?.map((role) => role.code) || [] },
+      { name: 'mustChangePassword', label: 'Debe cambiar contrasena', type: 'checkbox', default: false },
+      { name: 'avatarUrl', label: 'Avatar', type: 'url', nullable: true, full: true },
+    ],
+    create: (payload) => adminApi.createUser(payload),
+    update: (item, payload) => adminApi.updateUser(item.publicId, payload),
+  },
+  notifications: {
+    types: {
+      queue: {
+        editTitle: (item) => `Actualizar ${item.eventCode}`,
+        fields: () => [
+          { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.notification, required: true },
+          { name: 'errorMessage', label: 'Mensaje de error', type: 'textarea', nullable: true, full: true },
+        ],
+        update: (item, payload) => adminApi.updateNotificationQueue(item.id, payload),
+      },
+      preference: {
+        editTitle: (item) => `Preferencia ${item.eventCode}`,
+        fields: () => [
+          { name: 'isEnabled', label: 'Habilitada', type: 'checkbox', default: true },
+        ],
+        update: (item, payload) => adminApi.updateNotificationPreference(item.id, payload),
+      },
+    },
+  },
+}
+
+const currentMaintenanceConfig = computed(() => getMaintenanceConfig())
+const activeMaintenanceConfig = computed(() => getMaintenanceConfig(formState.value.type))
+const activeFields = computed(() => activeMaintenanceConfig.value?.fields?.(formState.value.mode) || [])
+const formTitle = computed(() => {
+  const config = activeMaintenanceConfig.value
+
+  if (!config) {
+    return ''
+  }
+
+  if (formState.value.mode === 'create') {
+    return config.createTitle || 'Nuevo registro'
+  }
+
+  return config.editTitle?.(formState.value.item) || 'Editar registro'
+})
+const submitLabel = computed(() =>
+  formState.value.mode === 'create' ? 'Crear registro' : 'Guardar cambios',
+)
+
+function getMaintenanceConfig(type = '') {
+  const config = maintenanceConfigs[route.meta.moduleKey || 'projects']
+
+  if (!config) {
+    return null
+  }
+
+  if (config.types) {
+    return type ? config.types[type] : null
+  }
+
+  return config
+}
+
+function fieldOptions(field) {
+  return typeof field.options === 'function' ? field.options() : field.options || []
+}
+
+function isFieldRequired(field) {
+  return !!field.required
+}
+
+function initialFieldValue(field, item, mode) {
+  if (mode === 'edit') {
+    const value = field.fromItem ? field.fromItem(item) : item?.[field.name]
+
+    if (field.type === 'datetime-local') {
+      return toDateTimeLocal(value)
+    }
+
+    if (field.multiple) {
+      return Array.isArray(value) ? value : []
+    }
+
+    if (field.type === 'checkbox') {
+      return Boolean(value)
+    }
+
+    if (field.type === 'color') {
+      return value || field.default || '#000000'
+    }
+
+    return value ?? ''
+  }
+
+  if (field.multiple) {
+    return field.default ?? []
+  }
+
+  if (field.type === 'checkbox') {
+    return field.default ?? false
+  }
+
+  return field.default ?? ''
+}
+
+function buildInitialValues(config, item, mode) {
+  return config.fields(mode).reduce((values, field) => {
+    values[field.name] = initialFieldValue(field, item, mode)
+    return values
+  }, {})
+}
+
+function normalizePayloadValue(value, field) {
+  if (field.type === 'checkbox') {
+    return Boolean(value)
+  }
+
+  if (field.multiple) {
+    return Array.isArray(value) ? value : []
+  }
+
+  if (field.type === 'number') {
+    if (value === '' || value === null || value === undefined) {
+      return field.nullable ? null : undefined
+    }
+
+    return Number(value)
+  }
+
+  if (field.type === 'datetime-local') {
+    return value ? new Date(value).toISOString() : field.nullable ? null : undefined
+  }
+
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+
+    if (!trimmed) {
+      if (field.omitWhenEmpty) {
+        return undefined
+      }
+
+      return field.nullable ? null : ''
+    }
+
+    return trimmed
+  }
+
+  return value
+}
+
+function buildPayload(config) {
+  return config.fields(formState.value.mode).reduce((payload, field) => {
+    const value = normalizePayloadValue(formState.value.values[field.name], field)
+
+    if (value !== undefined) {
+      payload[field.name] = value
+    }
+
+    return payload
+  }, {})
+}
+
+function syncDerivedField(field) {
+  const sourceValue = formState.value.values[field.deriveFrom]
+  const currentValue = formState.value.values[field.name]
+
+  if (!field.deriveFrom || !field.transform || currentValue) {
+    return
+  }
+
+  formState.value.values[field.name] = field.transform(sourceValue || '')
+}
+
+function updateDerivedFields(sourceName) {
+  activeFields.value
+    .filter((field) => field.deriveFrom === sourceName)
+    .forEach(syncDerivedField)
+}
+
+function openCreateForm() {
+  const config = getMaintenanceConfig()
+
+  if (!config?.canCreate) {
+    return
+  }
+
+  successMessage.value = ''
+  formFeedback.value = ''
+  formState.value = {
+    open: true,
+    mode: 'create',
+    type: '',
+    item: null,
+    values: buildInitialValues(config, null, 'create'),
+  }
+}
+
+function openEditForm(item) {
+  const config = getMaintenanceConfig(item.maintenanceType || '')
+
+  if (!config?.update) {
+    return
+  }
+
+  successMessage.value = ''
+  formFeedback.value = ''
+  formState.value = {
+    open: true,
+    mode: 'edit',
+    type: item.maintenanceType || '',
+    item,
+    values: buildInitialValues(config, item, 'edit'),
+  }
+}
+
+function closeForm() {
+  formState.value.open = false
+  formFeedback.value = ''
+}
+
+async function submitMaintenance() {
+  const config = activeMaintenanceConfig.value
+
+  if (!config) {
+    return
+  }
+
+  saving.value = true
+  formFeedback.value = ''
+  successMessage.value = ''
+
+  try {
+    activeFields.value.forEach(syncDerivedField)
+    const payload = buildPayload(config)
+
+    if (formState.value.mode === 'create') {
+      await config.create(payload)
+    } else {
+      await config.update(formState.value.item, payload)
+    }
+
+    formState.value.open = false
+    successMessage.value = 'Registro guardado correctamente.'
+    await loadModule()
+  } catch (error) {
+    formFeedback.value = error.message
+  } finally {
+    saving.value = false
+  }
+}
+
 async function loadProjectsModule() {
-  const payload = await adminApi.getProjects({ page: 1, limit: 12 })
+  const [payload, categories, technologies] = await Promise.all([
+    adminApi.getProjects({ page: 1, limit: 12 }),
+    adminApi.getCategories(),
+    adminApi.getTechnologies(),
+  ])
   const items = payload.items || []
+  formOptions.value.categories = categories
+  formOptions.value.technologies = technologies
 
   return {
     eyebrow: 'Gestion editorial',
@@ -52,7 +508,8 @@ async function loadProjectsModule() {
       {
         title: 'Proyectos recientes',
         subtitle: 'Vista rapida del portafolio administrado.',
-        items: items.map((item) => ({
+        editable: true,
+        items: items.map((item) => withEditMeta({
           ...item,
           subtitle: `${item.categoryName || 'Sin categoria'} | ${item.visibility || 'public'} | ${item.versionLabel || 'sin version'}`,
           badge: item.status,
@@ -65,6 +522,7 @@ async function loadProjectsModule() {
 
 async function loadCategoriesModule() {
   const items = await adminApi.getCategories()
+  formOptions.value.categories = items
 
   return {
     eyebrow: 'Organizacion',
@@ -79,7 +537,8 @@ async function loadCategoriesModule() {
       {
         title: 'Listado actual',
         subtitle: 'Categorias ordenadas segun la configuracion del panel.',
-        items: items.map((item) => ({
+        editable: true,
+        items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
           subtitle: item.description || `slug: ${item.slug}`,
@@ -93,6 +552,7 @@ async function loadCategoriesModule() {
 
 async function loadTechnologiesModule() {
   const items = await adminApi.getTechnologies()
+  formOptions.value.technologies = items
 
   return {
     eyebrow: 'Capacidad tecnica',
@@ -107,7 +567,8 @@ async function loadTechnologiesModule() {
       {
         title: 'Stack administrado',
         subtitle: 'Tecnologias disponibles para asociar a demos.',
-        items: items.map((item) => ({
+        editable: true,
+        items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
           subtitle: item.description || item.slug,
@@ -120,8 +581,12 @@ async function loadTechnologiesModule() {
 }
 
 async function loadContactsModule() {
-  const payload = await adminApi.getContacts({ page: 1, limit: 12 })
+  const [payload, usersPayload] = await Promise.all([
+    adminApi.getContacts({ page: 1, limit: 12 }),
+    adminApi.getUsers({ page: 1, limit: 100 }),
+  ])
   const items = payload.items || []
+  formOptions.value.users = usersPayload.items || []
 
   return {
     eyebrow: 'Embudo comercial',
@@ -136,7 +601,8 @@ async function loadContactsModule() {
       {
         title: 'Solicitudes recientes',
         subtitle: 'Entrada comercial capturada por el formulario publico.',
-        items: items.map((item) => ({
+        editable: true,
+        items: items.map((item) => withEditMeta({
           ...item,
           title: item.fullName,
           subtitle: `${item.projectTitle || 'Lead general'} | ${item.email} | ${formatDate(item.createdAt)}`,
@@ -154,6 +620,7 @@ async function loadUsersModule() {
     adminApi.getRoles(),
   ])
   const items = payload.items || []
+  formOptions.value.roles = roles
 
   return {
     eyebrow: 'Control de acceso',
@@ -168,7 +635,8 @@ async function loadUsersModule() {
       {
         title: 'Usuarios recientes',
         subtitle: 'Vista rapida de acceso interno y asignacion de roles.',
-        items: items.map((item) => ({
+        editable: true,
+        items: items.map((item) => withEditMeta({
           ...item,
           subtitle: `${item.email} | ${item.roles?.map((role) => role.name).join(', ') || 'sin roles'} | ultimo acceso ${item.lastLoginAt ? formatDate(item.lastLoginAt) : 'sin registro'}`,
           badge: item.status,
@@ -294,12 +762,13 @@ async function loadNotificationsModule() {
       {
         title: 'Cola reciente',
         subtitle: 'Eventos que esperan envio o ya fueron procesados.',
-        items: queue.map((item) => ({
+        editable: true,
+        items: queue.map((item) => withEditMeta({
           ...item,
           title: item.eventCode,
           subtitle: `${item.channelName} | ${item.recipientTo || 'sin destinatario'} | ${formatDate(item.createdAt)}`,
           badge: item.status,
-        })),
+        }, 'queue')),
         emptyMessage: 'No hay items en cola.',
       },
       {
@@ -324,12 +793,13 @@ async function loadNotificationsModule() {
       {
         title: 'Preferencias administrativas',
         subtitle: 'Configuracion por usuario y canal para eventos del sistema.',
-        items: preferences.slice(0, 12).map((item) => ({
+        editable: true,
+        items: preferences.slice(0, 12).map((item) => withEditMeta({
           ...item,
           title: item.adminUserFullName,
           subtitle: `${item.eventCode} | ${item.channelName}`,
           badge: item.isEnabled ? 'habilitada' : 'deshabilitada',
-        })),
+        }, 'preference')),
         emptyMessage: 'No hay preferencias definidas.',
       },
     ],
@@ -408,8 +878,87 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
         <p class="section__eyebrow">{{ moduleState.eyebrow || 'Modulo administrativo' }}</p>
         <h1>{{ moduleState.title || 'Cargando modulo...' }}</h1>
       </div>
-      <p>{{ moduleState.description || 'Preparando informacion del modulo seleccionado.' }}</p>
+      <div class="admin-page__summary">
+        <p>{{ moduleState.description || 'Preparando informacion del modulo seleccionado.' }}</p>
+        <button
+          v-if="currentMaintenanceConfig?.canCreate"
+          class="button button--primary"
+          type="button"
+          @click="openCreateForm"
+        >
+          {{ currentMaintenanceConfig.createLabel || 'Crear registro' }}
+        </button>
+      </div>
     </header>
+
+    <p v-if="successMessage" class="form-message form-message--success">{{ successMessage }}</p>
+
+    <section v-if="formState.open" class="admin-panel-card admin-maintenance-card">
+      <div class="admin-panel-card__header">
+        <div>
+          <p class="section__eyebrow">Mantenimiento</p>
+          <h2>{{ formTitle }}</h2>
+        </div>
+        <button class="button button--secondary" type="button" @click="closeForm">Cancelar</button>
+      </div>
+
+      <form class="lead-form maintenance-form" @submit.prevent="submitMaintenance">
+        <template v-for="field in activeFields" :key="field.name">
+          <label
+            v-if="field.type === 'checkbox'"
+            class="checkbox-field maintenance-form__checkbox"
+          >
+            <input v-model="formState.values[field.name]" type="checkbox" />
+            <span>{{ field.label }}</span>
+          </label>
+
+          <label v-else :class="{ 'lead-form__full': field.full || field.type === 'textarea' || field.multiple }">
+            <span>{{ field.label }}</span>
+
+            <textarea
+              v-if="field.type === 'textarea'"
+              v-model="formState.values[field.name]"
+              :required="isFieldRequired(field)"
+            />
+
+            <select
+              v-else-if="field.type === 'select'"
+              v-model="formState.values[field.name]"
+              :multiple="field.multiple"
+              :required="isFieldRequired(field)"
+            >
+              <option v-if="field.emptyLabel && !field.multiple" value="">{{ field.emptyLabel }}</option>
+              <option
+                v-for="option in fieldOptions(field)"
+                :key="String(option.value)"
+                :value="option.value"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+
+            <input
+              v-else
+              v-model="formState.values[field.name]"
+              :type="field.type || 'text'"
+              :required="isFieldRequired(field)"
+              @input="updateDerivedFields(field.name)"
+            />
+          </label>
+        </template>
+
+        <div class="lead-form__actions maintenance-form__actions">
+          <button class="button button--primary" type="submit" :disabled="saving">
+            {{ saving ? 'Guardando...' : submitLabel }}
+          </button>
+          <button class="button button--secondary" type="button" @click="closeForm">Cancelar</button>
+        </div>
+
+        <p v-if="formFeedback" class="form-message form-message--error lead-form__full">
+          {{ formFeedback }}
+        </p>
+      </form>
+    </section>
 
     <div v-if="loading" class="empty-state">
       <p>Cargando modulo administrativo...</p>
@@ -438,6 +987,9 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           :subtitle="section.subtitle"
           :items="section.items"
           :empty-message="section.emptyMessage"
+          :editable="!!section.editable"
+          action-label="Editar"
+          @edit="openEditForm"
         />
       </section>
     </template>
