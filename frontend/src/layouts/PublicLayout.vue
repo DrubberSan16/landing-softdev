@@ -29,7 +29,7 @@ const navigation = [
   },
   {
     label: 'Login',
-    to: { path: '/', hash: '#login-admin' },
+    to: { name: 'admin-login' },
     isLogin: true,
   },
 ]

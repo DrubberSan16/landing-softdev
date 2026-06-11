@@ -1,6 +1,7 @@
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import type { NextFunction, Request, Response } from 'express';
 import { PostgresExceptionFilter } from '../common/filters/postgres-exception.filter';
 
 type RuntimeConfig = {
@@ -30,6 +31,32 @@ function getAllowedOrigins(frontendUrl: string, nodeEnv: string): string[] {
   );
 }
 
+function useApiPrefixFallback(app: INestApplication, apiPrefix: string): void {
+  const normalizedPrefix = apiPrefix.replace(/^\/+|\/+$/g, '');
+
+  if (!normalizedPrefix) {
+    return;
+  }
+
+  const prefixPath = `/${normalizedPrefix}`;
+  const fallbackSegments = ['/public', '/admin', '/health'];
+
+  app.use((request: Request, _response: Response, next: NextFunction) => {
+    const requestPath = request.url.split('?')[0];
+    const alreadyPrefixed =
+      requestPath === prefixPath || requestPath.startsWith(`${prefixPath}/`);
+    const needsPrefix = fallbackSegments.some(
+      (segment) => requestPath === segment || requestPath.startsWith(`${segment}/`),
+    );
+
+    if (!alreadyPrefixed && needsPrefix) {
+      request.url = `${prefixPath}${request.url}`;
+    }
+
+    next();
+  });
+}
+
 export function configureApp(app: INestApplication): RuntimeConfig {
   const configService = app.get(ConfigService);
 
@@ -56,6 +83,7 @@ export function configureApp(app: INestApplication): RuntimeConfig {
     credentials: true,
   });
 
+  useApiPrefixFallback(app, apiPrefix);
   app.setGlobalPrefix(apiPrefix);
   app.useGlobalPipes(
     new ValidationPipe({
