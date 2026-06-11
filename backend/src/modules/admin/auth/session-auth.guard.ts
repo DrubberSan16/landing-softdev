@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { CurrentAdmin } from '../../../common/interfaces/current-admin.interface';
 import { AuthService } from './auth.service';
 
 @Injectable()
@@ -14,7 +15,12 @@ export class SessionAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
-      .getRequest<Request & { admin?: unknown }>();
+      .getRequest<Request & { admin?: CurrentAdmin }>();
+
+    if (request.admin) {
+      return true;
+    }
+
     const header = request.headers.authorization;
 
     if (!header || !header.startsWith('Bearer ')) {
