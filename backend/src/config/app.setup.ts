@@ -9,10 +9,32 @@ type RuntimeConfig = {
   swaggerPath: string;
 };
 
+function getAllowedOrigins(frontendUrl: string, nodeEnv: string): string[] {
+  const configuredOrigins = frontendUrl
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  if (nodeEnv === 'production') {
+    return configuredOrigins;
+  }
+
+  return Array.from(
+    new Set([
+      ...configuredOrigins,
+      'http://localhost:5173',
+      'http://127.0.0.1:5173',
+      'http://localhost:4173',
+      'http://127.0.0.1:4173',
+    ]),
+  );
+}
+
 export function configureApp(app: INestApplication): RuntimeConfig {
   const configService = app.get(ConfigService);
 
   const appName = configService.get<string>('APP_NAME', 'Landing Softdev API');
+  const nodeEnv = configService.get<string>('NODE_ENV', 'development');
   const apiPrefix = configService.get<string>('API_PREFIX', 'api');
   const port = Number(configService.get<string>('PORT', '3000'));
   const swaggerPath = configService.get<string>('SWAGGER_PATH', 'docs');
@@ -27,10 +49,7 @@ export function configureApp(app: INestApplication): RuntimeConfig {
     'http://localhost:5173',
   );
 
-  const allowedOrigins = frontendUrl
-    .split(',')
-    .map((origin) => origin.trim())
-    .filter(Boolean);
+  const allowedOrigins = getAllowedOrigins(frontendUrl, nodeEnv);
 
   app.enableCors({
     origin: allowedOrigins,
