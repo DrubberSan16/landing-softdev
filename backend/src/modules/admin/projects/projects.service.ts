@@ -117,7 +117,7 @@ export class ProjectsService {
     admin: CurrentAdmin,
     request: Request,
   ) {
-    return this.databaseService.transaction(async (client) => {
+    const created = await this.databaseService.transaction(async (client) => {
       const categoryId = await this.resolveCategoryId(
         payload.categoryPublicId,
         client,
@@ -201,22 +201,24 @@ export class ProjectsService {
         client,
       );
 
-      await this.auditService.log({
-        adminUserId: admin.id,
-        actionCode: 'projects.create',
-        entityName: 'tb_projects',
-        entityId: created?.id ?? null,
-        description: `Proyecto creado: ${payload.title}`,
-        newData: {
-          publicId: created?.publicId ?? null,
-          slug: payload.slug,
-          technologyPublicIds: payload.technologyPublicIds ?? [],
-        },
-        request,
-      });
-
-      return this.findOne(created!.publicId);
+      return created!;
     });
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'projects.create',
+      entityName: 'tb_projects',
+      entityId: created.id,
+      description: `Proyecto creado: ${payload.title}`,
+      newData: {
+        publicId: created.publicId,
+        slug: payload.slug,
+        technologyPublicIds: payload.technologyPublicIds ?? [],
+      },
+      request,
+    });
+
+    return this.findOne(created.publicId);
   }
 
   async update(
@@ -245,7 +247,7 @@ export class ProjectsService {
       throw new NotFoundException('No se encontro el proyecto solicitado.');
     }
 
-    return this.databaseService.transaction(async (client) => {
+    await this.databaseService.transaction(async (client) => {
       const categoryId =
         payload.categoryPublicId !== undefined
           ? await this.resolveCategoryId(payload.categoryPublicId, client)
@@ -306,23 +308,23 @@ export class ProjectsService {
           client,
         );
       }
-
-      await this.auditService.log({
-        adminUserId: admin.id,
-        actionCode: 'projects.update',
-        entityName: 'tb_projects',
-        entityId: existing.id,
-        description: `Proyecto actualizado: ${existing.title}`,
-        oldData: existing as Record<string, unknown>,
-        newData: {
-          slug: payload.slug ?? existing.slug,
-          technologyPublicIds: payload.technologyPublicIds,
-        },
-        request,
-      });
-
-      return this.findOne(publicId);
     });
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'projects.update',
+      entityName: 'tb_projects',
+      entityId: existing.id,
+      description: `Proyecto actualizado: ${existing.title}`,
+      oldData: existing as Record<string, unknown>,
+      newData: {
+        slug: payload.slug ?? existing.slug,
+        technologyPublicIds: payload.technologyPublicIds,
+      },
+      request,
+    });
+
+    return this.findOne(publicId);
   }
 
   async remove(publicId: string, admin: CurrentAdmin, request: Request) {

@@ -305,10 +305,9 @@ export class UsersService {
     request: Request,
     actionCode: string,
   ) {
-    return this.databaseService.transaction(async (client) => {
-      const passwordHash = await hash(payload.password, 10);
-      const fullName = `${payload.firstName} ${payload.lastName}`.trim();
-
+    const passwordHash = await hash(payload.password, 10);
+    const fullName = `${payload.firstName} ${payload.lastName}`.trim();
+    const created = await this.databaseService.transaction(async (client) => {
       const created = await this.databaseService.one<{
         id: number;
         publicId: string;
@@ -348,22 +347,24 @@ export class UsersService {
         await this.replaceUserRoles(created!.id, payload.roleCodes, client);
       }
 
-      await this.auditService.log({
-        adminUserId: admin?.id ?? null,
-        actionCode,
-        entityName: 'tb_admin_users',
-        entityId: created?.id ?? null,
-        description: `Usuario administrativo creado: ${fullName}`,
-        newData: {
-          publicId: created?.publicId ?? null,
-          email: payload.email,
-          roleCodes: payload.roleCodes ?? [],
-        },
-        request,
-      });
-
-      return this.findOne(created!.publicId);
+      return created!;
     });
+
+    await this.auditService.log({
+      adminUserId: admin?.id ?? null,
+      actionCode,
+      entityName: 'tb_admin_users',
+      entityId: created.id,
+      description: `Usuario administrativo creado: ${fullName}`,
+      newData: {
+        publicId: created.publicId,
+        email: payload.email,
+        roleCodes: payload.roleCodes ?? [],
+      },
+      request,
+    });
+
+    return this.findOne(created.publicId);
   }
 
   private async updateUser(
@@ -398,15 +399,15 @@ export class UsersService {
       throw new NotFoundException('No se encontro el usuario administrativo.');
     }
 
-    return this.databaseService.transaction(async (client) => {
-      const hashedPassword = payload.password
-        ? await hash(payload.password, 10)
+    const hashedPassword = payload.password
+      ? await hash(payload.password, 10)
+      : undefined;
+    const fullName =
+      payload.firstName || payload.lastName
+        ? `${payload.firstName ?? existing.firstName} ${payload.lastName ?? existing.lastName}`.trim()
         : undefined;
-      const fullName =
-        payload.firstName || payload.lastName
-          ? `${payload.firstName ?? existing.firstName} ${payload.lastName ?? existing.lastName}`.trim()
-          : undefined;
 
+    await this.databaseService.transaction(async (client) => {
       const updateData = buildSetClause(
         {
           first_name: payload.firstName,
@@ -437,23 +438,23 @@ export class UsersService {
       if (payload.roleCodes) {
         await this.replaceUserRoles(existing.id, payload.roleCodes, client);
       }
-
-      await this.auditService.log({
-        adminUserId: admin?.id ?? null,
-        actionCode,
-        entityName: 'tb_admin_users',
-        entityId: existing.id,
-        description: `Usuario administrativo actualizado: ${existing.fullName}`,
-        oldData: existing as Record<string, unknown>,
-        newData: {
-          email: payload.email ?? existing.email,
-          roleCodes: payload.roleCodes,
-        },
-        request,
-      });
-
-      return this.findOne(publicId);
     });
+
+    await this.auditService.log({
+      adminUserId: admin?.id ?? null,
+      actionCode,
+      entityName: 'tb_admin_users',
+      entityId: existing.id,
+      description: `Usuario administrativo actualizado: ${existing.fullName}`,
+      oldData: existing as Record<string, unknown>,
+      newData: {
+        email: payload.email ?? existing.email,
+        roleCodes: payload.roleCodes,
+      },
+      request,
+    });
+
+    return this.findOne(publicId);
   }
 
   private async replaceUserRoles(
