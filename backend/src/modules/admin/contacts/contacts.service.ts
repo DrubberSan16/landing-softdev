@@ -180,6 +180,12 @@ export class ContactsService {
       throw new NotFoundException('No se encontro el lead solicitado.');
     }
 
+    const hasFirstResponse = Boolean(payload.firstResponseAt);
+    const effectiveStatus =
+      hasFirstResponse && (!payload.status || payload.status === 'new')
+        ? 'in_progress'
+        : payload.status;
+
     let assignedToId: number | null | undefined = undefined;
 
     if (payload.assignedToPublicId) {
@@ -204,17 +210,18 @@ export class ContactsService {
 
     const updateData = buildSetClause(
       {
-        status: payload.status,
+        status: effectiveStatus,
         assigned_to: assignedToId,
         admin_notes: payload.adminNotes,
         first_response_at:
           payload.firstResponseAt ??
-          (payload.status === 'contacted'
+          (effectiveStatus === 'contacted'
             ? new Date().toISOString()
             : undefined),
         closed_at:
           payload.closedAt ??
-          (payload.status && ['won', 'lost', 'closed'].includes(payload.status)
+          (effectiveStatus &&
+          ['won', 'lost', 'closed'].includes(effectiveStatus)
             ? new Date().toISOString()
             : undefined),
         updated_at: new Date(),
@@ -243,7 +250,7 @@ export class ContactsService {
       actionCode: 'contacts.update',
       entityName: 'tb_contact_requests',
       entityId: existing.id,
-      description: `Lead actualizado a estado ${payload.status ?? existing.status}`,
+      description: `Lead actualizado a estado ${effectiveStatus ?? existing.status}`,
       oldData: existing as Record<string, unknown>,
       newData: updated as Record<string, unknown>,
       request,

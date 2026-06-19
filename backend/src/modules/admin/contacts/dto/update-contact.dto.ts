@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsDateString,
+  IsIn,
   IsOptional,
   IsString,
   IsUUID,
@@ -10,7 +11,7 @@ import {
 export class UpdateContactDto {
   @ApiPropertyOptional({ example: 'contacted' })
   @IsOptional()
-  @IsString()
+  @IsIn(['new', 'in_progress', 'contacted', 'won', 'lost', 'closed'])
   status?: string;
 
   @ApiPropertyOptional({ example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' })

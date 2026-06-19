@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import AdminDataTable from '../components/admin/AdminDataTable.vue'
 import StatCard from '../components/StatCard.vue'
@@ -34,6 +34,10 @@ const formState = ref({
   type: '',
   item: null,
   values: {},
+})
+const deleteState = ref({
+  open: false,
+  item: null,
 })
 
 const statusOptions = {
@@ -548,6 +552,18 @@ function updateDerivedFields(sourceName) {
     .forEach(syncDerivedField)
 }
 
+function updateSelectField(field, event) {
+  if (field.multiple) {
+    formState.value.values[field.name] = Array.from(event.target.selectedOptions).map(
+      (option) => option._value ?? option.value,
+    )
+    return
+  }
+
+  const selectedOption = event.target.selectedOptions?.[0]
+  formState.value.values[field.name] = selectedOption?._value ?? event.target.value
+}
+
 async function openCreateForm(type = '') {
   const config = getMaintenanceConfig(type)
 
@@ -565,8 +581,6 @@ async function openCreateForm(type = '') {
     item: null,
     values: buildInitialValues(config, null, 'create'),
   }
-  await nextTick()
-  document.querySelector('.admin-maintenance-card')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 async function openEditForm(item) {
@@ -586,8 +600,6 @@ async function openEditForm(item) {
     item,
     values: buildInitialValues(config, item, 'edit'),
   }
-  await nextTick()
-  document.querySelector('.admin-maintenance-card')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 function closeForm() {
@@ -626,10 +638,30 @@ async function submitMaintenance() {
   }
 }
 
-async function removeItem(item) {
+function requestRemove(item) {
   const config = getMaintenanceConfig(item.maintenanceType || '')
 
-  if (!config?.remove || !window.confirm(`¿Eliminar definitivamente "${item.title || item.fullName || item.name || 'este registro'}"?`)) {
+  if (!config?.remove) {
+    return
+  }
+
+  actionErrorMessage.value = ''
+  deleteState.value = { open: true, item }
+}
+
+function closeDeleteModal() {
+  if (workingAction.value) {
+    return
+  }
+
+  deleteState.value = { open: false, item: null }
+}
+
+async function confirmRemove() {
+  const item = deleteState.value.item
+  const config = item ? getMaintenanceConfig(item.maintenanceType || '') : null
+
+  if (!item || !config?.remove) {
     return
   }
 
@@ -639,6 +671,7 @@ async function removeItem(item) {
 
   try {
     await config.remove(item)
+    deleteState.value = { open: false, item: null }
     successMessage.value = 'Registro eliminado correctamente.'
     await loadModule()
   } catch (error) {
@@ -647,6 +680,34 @@ async function removeItem(item) {
     workingAction.value = false
   }
 }
+
+function handleModalKeydown(event) {
+  if (event.key !== 'Escape') {
+    return
+  }
+
+  if (deleteState.value.open) {
+    closeDeleteModal()
+  } else if (formState.value.open && !saving.value) {
+    closeForm()
+  }
+}
+
+watch(
+  [() => formState.value.open, () => deleteState.value.open],
+  ([formOpen, deleteOpen]) => {
+    document.body.classList.toggle('modal-open', formOpen || deleteOpen)
+  },
+)
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('keydown', handleModalKeydown)
+}
+
+onBeforeUnmount(() => {
+  document.body.classList.remove('modal-open')
+  window.removeEventListener('keydown', handleModalKeydown)
+})
 
 async function toggleItem(item) {
   const config = getMaintenanceConfig(item.maintenanceType || '')
@@ -1318,13 +1379,24 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
     <p v-if="successMessage" class="form-message form-message--success">{{ successMessage }}</p>
     <p v-if="actionErrorMessage" class="form-message form-message--error">{{ actionErrorMessage }}</p>
 
-    <section v-if="formState.open" class="admin-panel-card admin-maintenance-card">
+    <Teleport to="body">
+      <div
+        v-if="formState.open"
+        class="admin-modal-backdrop"
+        @mousedown.self="!saving && closeForm()"
+      >
+        <section
+          class="admin-panel-card admin-maintenance-card admin-modal"
+          role="dialog"
+          aria-modal="true"
+          :aria-label="formTitle"
+        >
       <div class="admin-panel-card__header">
         <div>
-          <p class="section__eyebrow">Mantenimiento</p>
+          <p class="section__eyebrow">{{ formState.mode === 'create' ? 'Crear registro' : 'Editar registro' }}</p>
           <h2>{{ formTitle }}</h2>
         </div>
-        <button class="button button--secondary" type="button" @click="closeForm">Cancelar</button>
+        <button class="button button--secondary" type="button" :disabled="saving" @click="closeForm">Cerrar</button>
       </div>
 
       <div v-if="formState.mode === 'edit' && formState.item" class="maintenance-context">
@@ -1369,6 +1441,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
               v-model="formState.values[field.name]"
               :multiple="field.multiple"
               :required="isFieldRequired(field)"
+              @change="updateSelectField(field, $event)"
             >
               <option v-if="field.emptyLabel && !field.multiple" value="">{{ field.emptyLabel }}</option>
               <option
@@ -1395,14 +1468,46 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           <button class="button button--primary" type="submit" :disabled="saving">
             {{ saving ? 'Guardando...' : submitLabel }}
           </button>
-          <button class="button button--secondary" type="button" @click="closeForm">Cancelar</button>
+          <button class="button button--secondary" type="button" :disabled="saving" @click="closeForm">Cancelar</button>
         </div>
 
         <p v-if="formFeedback" class="form-message form-message--error lead-form__full">
           {{ formFeedback }}
         </p>
       </form>
-    </section>
+        </section>
+      </div>
+
+      <div
+        v-if="deleteState.open"
+        class="admin-modal-backdrop"
+        @mousedown.self="closeDeleteModal"
+      >
+        <section
+          class="admin-panel-card admin-delete-modal"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="delete-modal-title"
+        >
+          <p class="section__eyebrow">Confirmar eliminación</p>
+          <h2 id="delete-modal-title">¿Eliminar este registro?</h2>
+          <p>
+            Se eliminará
+            <strong>{{ deleteState.item?.title || deleteState.item?.fullName || deleteState.item?.name || 'el registro seleccionado' }}</strong>.
+            Esta acción puede estar restringida si existen datos asociados.
+          </p>
+          <p v-if="actionErrorMessage" class="form-message form-message--error">{{ actionErrorMessage }}</p>
+          <div class="admin-delete-modal__actions">
+            <button class="button button--secondary" type="button" :disabled="workingAction" @click="closeDeleteModal">
+              Cancelar
+            </button>
+            <button class="button button--danger" type="button" :disabled="workingAction" @click="confirmRemove">
+              {{ workingAction ? 'Eliminando...' : 'Sí, eliminar' }}
+            </button>
+          </div>
+        </section>
+      </div>
+    </Teleport>
 
     <div v-if="loading" class="empty-state">
       <p>Cargando modulo administrativo...</p>
@@ -1441,7 +1546,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           :action-label="section.actionLabel || 'Editar'"
           @edit="openEditForm"
           @create="openCreateForm(section.maintenanceType)"
-          @remove="removeItem"
+          @remove="requestRemove"
           @toggle="toggleItem"
         />
       </section>
