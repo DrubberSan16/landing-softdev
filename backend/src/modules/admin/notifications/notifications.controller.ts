@@ -1,9 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
+  Post,
   Query,
   Req,
   UseGuards,
@@ -20,6 +22,12 @@ import {
   UpdateNotificationPreferenceDto,
   UpdateNotificationQueueDto,
 } from './dto/update-notification.dto';
+import {
+  CreateNotificationChannelDto,
+  CreateNotificationTemplateDto,
+  UpdateNotificationChannelDto,
+  UpdateNotificationTemplateDto,
+} from './dto/upsert-notification-config.dto';
 import { NotificationsService } from './notifications.service';
 import type { Request } from 'express';
 import type { CurrentAdmin } from '../../../common/interfaces/current-admin.interface';
@@ -59,6 +67,86 @@ export class NotificationsController {
   })
   listPreferences(@Query() query: NotificationPreferenceQueryDto) {
     return this.notificationsService.listPreferences(query);
+  }
+
+  @Post('channels')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({ summary: 'Crear un canal de notificacion' })
+  createChannel(
+    @Body() payload: CreateNotificationChannelDto,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.createChannel(payload, admin, request);
+  }
+
+  @Patch('channels/:id')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({ summary: 'Actualizar un canal de notificacion' })
+  updateChannel(
+    @Param('id') id: string,
+    @Body() payload: UpdateNotificationChannelDto,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.updateChannel(
+      Number(id),
+      payload,
+      admin,
+      request,
+    );
+  }
+
+  @Delete('channels/:id')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({
+    summary: 'Eliminar un canal de notificacion sin dependencias',
+  })
+  removeChannel(
+    @Param('id') id: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.removeChannel(Number(id), admin, request);
+  }
+
+  @Post('templates')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({ summary: 'Crear una plantilla de notificacion' })
+  createTemplate(
+    @Body() payload: CreateNotificationTemplateDto,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.createTemplate(payload, admin, request);
+  }
+
+  @Patch('templates/:id')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({ summary: 'Actualizar una plantilla de notificacion' })
+  updateTemplate(
+    @Param('id') id: string,
+    @Body() payload: UpdateNotificationTemplateDto,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.updateTemplate(
+      Number(id),
+      payload,
+      admin,
+      request,
+    );
+  }
+
+  @Delete('templates/:id')
+  @RequirePermissions('notifications.manage')
+  @ApiOperation({ summary: 'Eliminar una plantilla de notificacion' })
+  removeTemplate(
+    @Param('id') id: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.notificationsService.removeTemplate(Number(id), admin, request);
   }
 
   @Patch('queue/:id')

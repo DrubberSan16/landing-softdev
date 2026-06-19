@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -65,6 +66,17 @@ export class ProjectsController {
     @Req() request: Request,
   ) {
     return this.projectsService.update(publicId, payload, admin, request);
+  }
+
+  @Delete(':publicId')
+  @RequirePermissions('projects.delete')
+  @ApiOperation({ summary: 'Eliminar logicamente un proyecto demo' })
+  remove(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.projectsService.remove(publicId, admin, request);
   }
 
   @Get(':publicId/media')

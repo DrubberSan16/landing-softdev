@@ -12,6 +12,7 @@ usePublicTracking()
 const loading = ref(true)
 const categories = ref([])
 const technologies = ref([])
+const landingProjects = ref([])
 const errorMessage = ref('')
 
 const heroStats = [
@@ -117,6 +118,7 @@ onMounted(async () => {
     const payload = await publicApi.getHomeData()
     categories.value = payload.categories || []
     technologies.value = payload.technologies || []
+    landingProjects.value = payload.featuredProjects || []
   } catch (error) {
     errorMessage.value = error.message
   } finally {
@@ -184,6 +186,27 @@ onMounted(async () => {
             </div>
           </div>
         </aside>
+      </div>
+    </section>
+
+    <section v-if="landingProjects.length" class="section landing-projects" id="proyectos-destacados">
+      <div class="section__header section__header--inline">
+        <div>
+          <p class="section__eyebrow">Páginas disponibles</p>
+          <h2>Conoce las soluciones que hemos publicado.</h2>
+        </div>
+        <RouterLink class="text-link" to="/proyectos">Ver todos los proyectos</RouterLink>
+      </div>
+
+      <div class="landing-projects__grid">
+        <article v-for="project in landingProjects" :key="project.publicId" class="landing-project-card">
+          <p class="section__eyebrow">{{ project.categoryName || 'Proyecto' }}</p>
+          <h3>{{ project.title }}</h3>
+          <p>{{ project.shortDescription }}</p>
+          <a :href="project.demoUrl" target="_blank" rel="noopener noreferrer">
+            {{ project.demoUrl }}
+          </a>
+        </article>
       </div>
     </section>
 

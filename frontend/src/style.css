@@ -1050,6 +1050,11 @@ textarea {
   padding: 14px 0;
 }
 
+.maintenance-form__checkbox > span {
+  display: grid;
+  gap: 3px;
+}
+
 .maintenance-form__actions {
   display: flex;
   flex-wrap: wrap;
@@ -1177,6 +1182,187 @@ textarea {
 
 .status-badge {
   border-color: rgba(15, 118, 110, 0.16);
+}
+
+.admin-table-card {
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-md);
+}
+
+.admin-table-card .admin-panel-card__header {
+  align-items: start;
+}
+
+.admin-table-card .admin-panel-card__header > p {
+  max-width: 66ch;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-table-card__header-actions {
+  display: grid;
+  justify-items: end;
+  gap: 10px;
+  max-width: 66ch;
+}
+
+.admin-table-card__header-actions p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.admin-table__create {
+  min-height: 38px;
+  padding: 0.58rem 0.9rem;
+}
+
+.admin-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(19, 37, 33, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #edf5f2;
+  color: var(--primary-strong);
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(231, 243, 239, 0.38);
+}
+
+.admin-table td > span:not(.status-badge),
+.admin-table td > a {
+  display: block;
+  color: var(--ink);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.admin-table td > small {
+  display: block;
+  max-width: 300px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-table__cell--wide {
+  min-width: 230px;
+}
+
+.admin-table__truncate {
+  max-width: 320px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-table__link {
+  max-width: 240px;
+  overflow: hidden;
+  color: var(--primary-strong) !important;
+  font-weight: 700;
+  text-decoration: underline;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-table__actions-heading {
+  text-align: right !important;
+}
+
+.admin-table__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 7px;
+  min-width: 250px;
+}
+
+.admin-table__button {
+  min-height: 34px;
+  padding: 0.48rem 0.72rem;
+  font-size: 0.76rem;
+  white-space: nowrap;
+}
+
+.button--danger {
+  border-color: rgba(180, 35, 24, 0.24);
+  background: rgba(180, 35, 24, 0.07);
+  color: #9f241b;
+}
+
+.button--danger:hover {
+  border-color: rgba(180, 35, 24, 0.4);
+  background: rgba(180, 35, 24, 0.12);
+}
+
+.landing-projects__grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.landing-project-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 22px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(145deg, #fff, rgba(231, 243, 239, 0.72));
+  box-shadow: var(--shadow-md);
+}
+
+.landing-project-card p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.landing-project-card a {
+  overflow: hidden;
+  color: var(--primary-strong);
+  font-size: 0.84rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hero__brand-art {
@@ -1451,7 +1637,8 @@ textarea {
 
   .project-grid--compact,
   .media-gallery,
-  .process-grid {
+  .process-grid,
+  .landing-projects__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1476,6 +1663,10 @@ textarea {
   }
 
   .admin-page__summary {
+    justify-items: start;
+  }
+
+  .admin-table-card__header-actions {
     justify-items: start;
   }
 
@@ -1512,7 +1703,8 @@ textarea {
 
   .project-grid--compact,
   .media-gallery,
-  .process-grid {
+  .process-grid,
+  .landing-projects__grid {
     grid-template-columns: 1fr;
   }
 

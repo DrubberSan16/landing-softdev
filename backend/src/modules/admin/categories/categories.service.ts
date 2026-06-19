@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { DatabaseService } from '../../../common/database/database.service';
 import { CurrentAdmin } from '../../../common/interfaces/current-admin.interface';
@@ -177,5 +181,53 @@ export class CategoriesService {
     });
 
     return updated;
+  }
+
+  async remove(publicId: string, admin: CurrentAdmin, request: Request) {
+    const existing = await this.databaseService.one<{
+      id: number;
+      name: string;
+      projectCount: string;
+    }>(
+      `
+        SELECT
+          c.id,
+          c.name,
+          COUNT(p.id)::text AS "projectCount"
+        FROM landing_core.tb_project_categories c
+        LEFT JOIN landing_core.tb_projects p
+          ON p.category_id = c.id
+        WHERE c.public_id = $1::uuid
+        GROUP BY c.id
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro la categoria solicitada.');
+    }
+
+    if (Number(existing.projectCount) > 0) {
+      throw new ConflictException(
+        'La categoria tiene proyectos asociados. Desactivala en lugar de eliminarla.',
+      );
+    }
+
+    await this.databaseService.query(
+      `DELETE FROM landing_core.tb_project_categories WHERE id = $1`,
+      [existing.id],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'categories.delete',
+      entityName: 'tb_project_categories',
+      entityId: existing.id,
+      description: `Categoria eliminada: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Categoria eliminada correctamente.' };
   }
 }

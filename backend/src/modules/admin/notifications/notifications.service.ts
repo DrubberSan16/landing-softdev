@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { DatabaseService } from '../../../common/database/database.service';
 import { CurrentAdmin } from '../../../common/interfaces/current-admin.interface';
@@ -12,6 +16,12 @@ import {
   UpdateNotificationPreferenceDto,
   UpdateNotificationQueueDto,
 } from './dto/update-notification.dto';
+import {
+  CreateNotificationChannelDto,
+  CreateNotificationTemplateDto,
+  UpdateNotificationChannelDto,
+  UpdateNotificationTemplateDto,
+} from './dto/upsert-notification-config.dto';
 
 @Injectable()
 export class NotificationsService {
@@ -176,6 +186,234 @@ export class NotificationsService {
     );
   }
 
+  async createChannel(
+    payload: CreateNotificationChannelDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const created = await this.databaseService.one<{
+      id: number;
+      code: string;
+      name: string;
+    }>(
+      `
+        INSERT INTO landing_core.tb_notification_channels (
+          code, name, description, is_active, created_at
+        )
+        VALUES ($1, $2, $3, COALESCE($4, TRUE), NOW())
+        RETURNING id, code, name
+      `,
+      [
+        payload.code.trim().toLowerCase(),
+        payload.name,
+        payload.description ?? null,
+        payload.isActive ?? true,
+      ],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.channels.create',
+      entityName: 'tb_notification_channels',
+      entityId: created?.id ?? null,
+      description: `Canal de notificacion creado: ${payload.name}`,
+      newData: created as Record<string, unknown>,
+      request,
+    });
+
+    return created;
+  }
+
+  async updateChannel(
+    id: number,
+    payload: UpdateNotificationChannelDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const existing = await this.getChannel(id);
+    const updateData = buildSetClause(
+      {
+        code: payload.code?.trim().toLowerCase(),
+        name: payload.name,
+        description: payload.description,
+        is_active: payload.isActive,
+      },
+      1,
+    );
+    const updated = await this.databaseService.one(
+      `
+        UPDATE landing_core.tb_notification_channels
+        SET ${updateData.setClause}
+        WHERE id = $${updateData.values.length + 1}
+        RETURNING id, code, name, description, is_active AS "isActive"
+      `,
+      [...updateData.values, id],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.channels.update',
+      entityName: 'tb_notification_channels',
+      entityId: id,
+      description: `Canal de notificacion actualizado: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      newData: updated as Record<string, unknown>,
+      request,
+    });
+
+    return updated;
+  }
+
+  async removeChannel(id: number, admin: CurrentAdmin, request: Request) {
+    const existing = await this.getChannel(id);
+    const dependencies = await this.databaseService.one<{
+      templates: string;
+      preferences: string;
+      queueItems: string;
+    }>(
+      `
+        SELECT
+          (SELECT COUNT(*) FROM landing_core.tb_notification_templates WHERE channel_id = $1)::text AS templates,
+          (SELECT COUNT(*) FROM landing_core.tb_admin_notification_preferences WHERE channel_id = $1)::text AS preferences,
+          (SELECT COUNT(*) FROM landing_core.tb_notification_queue WHERE channel_id = $1)::text AS "queueItems"
+      `,
+      [id],
+    );
+
+    if (
+      Number(dependencies?.templates ?? 0) > 0 ||
+      Number(dependencies?.preferences ?? 0) > 0 ||
+      Number(dependencies?.queueItems ?? 0) > 0
+    ) {
+      throw new ConflictException(
+        'El canal tiene plantillas, preferencias o envios asociados. Desactivalo en lugar de eliminarlo.',
+      );
+    }
+
+    await this.databaseService.query(
+      `DELETE FROM landing_core.tb_notification_channels WHERE id = $1`,
+      [id],
+    );
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.channels.delete',
+      entityName: 'tb_notification_channels',
+      entityId: id,
+      description: `Canal de notificacion eliminado: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Canal eliminado correctamente.' };
+  }
+
+  async createTemplate(
+    payload: CreateNotificationTemplateDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const channelId = await this.resolveChannelId(payload.channelCode);
+    const created = await this.databaseService.one<{
+      id: number;
+      name: string;
+      eventCode: string;
+    }>(
+      `
+        INSERT INTO landing_core.tb_notification_templates (
+          event_code, channel_id, name, subject_template, body_template,
+          is_active, created_at, updated_at
+        )
+        VALUES ($1, $2, $3, $4, $5, COALESCE($6, TRUE), NOW(), NOW())
+        RETURNING id, name, event_code AS "eventCode"
+      `,
+      [
+        payload.eventCode,
+        channelId,
+        payload.name,
+        payload.subjectTemplate ?? null,
+        payload.bodyTemplate,
+        payload.isActive ?? true,
+      ],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.templates.create',
+      entityName: 'tb_notification_templates',
+      entityId: created?.id ?? null,
+      description: `Plantilla de notificacion creada: ${payload.name}`,
+      newData: created as Record<string, unknown>,
+      request,
+    });
+
+    return created;
+  }
+
+  async updateTemplate(
+    id: number,
+    payload: UpdateNotificationTemplateDto,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const existing = await this.getTemplate(id);
+    const channelId = payload.channelCode
+      ? await this.resolveChannelId(payload.channelCode)
+      : undefined;
+    const updateData = buildSetClause(
+      {
+        event_code: payload.eventCode,
+        channel_id: channelId,
+        name: payload.name,
+        subject_template: payload.subjectTemplate,
+        body_template: payload.bodyTemplate,
+        is_active: payload.isActive,
+        updated_at: new Date(),
+      },
+      1,
+    );
+    const updated = await this.databaseService.one(
+      `
+        UPDATE landing_core.tb_notification_templates
+        SET ${updateData.setClause}
+        WHERE id = $${updateData.values.length + 1}
+        RETURNING id, event_code AS "eventCode", name, is_active AS "isActive"
+      `,
+      [...updateData.values, id],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.templates.update',
+      entityName: 'tb_notification_templates',
+      entityId: id,
+      description: `Plantilla de notificacion actualizada: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      newData: updated as Record<string, unknown>,
+      request,
+    });
+
+    return updated;
+  }
+
+  async removeTemplate(id: number, admin: CurrentAdmin, request: Request) {
+    const existing = await this.getTemplate(id);
+    await this.databaseService.query(
+      `DELETE FROM landing_core.tb_notification_templates WHERE id = $1`,
+      [id],
+    );
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'notifications.templates.delete',
+      entityName: 'tb_notification_templates',
+      entityId: id,
+      description: `Plantilla de notificacion eliminada: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Plantilla eliminada correctamente.' };
+  }
+
   async updateQueueItem(
     id: number,
     payload: UpdateNotificationQueueDto,
@@ -230,6 +468,56 @@ export class NotificationsService {
     });
 
     return updated;
+  }
+
+  private async getChannel(id: number) {
+    const channel = await this.databaseService.one<{
+      id: number;
+      code: string;
+      name: string;
+      description: string | null;
+      isActive: boolean;
+    }>(
+      `SELECT id, code, name, description, is_active AS "isActive" FROM landing_core.tb_notification_channels WHERE id = $1`,
+      [id],
+    );
+
+    if (!channel) {
+      throw new NotFoundException('No se encontro el canal solicitado.');
+    }
+
+    return channel;
+  }
+
+  private async getTemplate(id: number) {
+    const template = await this.databaseService.one<{
+      id: number;
+      name: string;
+      eventCode: string;
+      isActive: boolean;
+    }>(
+      `SELECT id, name, event_code AS "eventCode", is_active AS "isActive" FROM landing_core.tb_notification_templates WHERE id = $1`,
+      [id],
+    );
+
+    if (!template) {
+      throw new NotFoundException('No se encontro la plantilla solicitada.');
+    }
+
+    return template;
+  }
+
+  private async resolveChannelId(code: string) {
+    const channel = await this.databaseService.one<{ id: number }>(
+      `SELECT id FROM landing_core.tb_notification_channels WHERE code = $1`,
+      [code],
+    );
+
+    if (!channel) {
+      throw new NotFoundException('No se encontro el canal seleccionado.');
+    }
+
+    return channel.id;
   }
 
   async updatePreference(

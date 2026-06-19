@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -57,5 +58,16 @@ export class TechnologiesController {
     @Req() request: Request,
   ) {
     return this.technologiesService.update(publicId, payload, admin, request);
+  }
+
+  @Delete(':publicId')
+  @RequirePermissions('technologies.manage')
+  @ApiOperation({ summary: 'Eliminar una tecnologia sin proyectos asociados' })
+  remove(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.technologiesService.remove(publicId, admin, request);
   }
 }

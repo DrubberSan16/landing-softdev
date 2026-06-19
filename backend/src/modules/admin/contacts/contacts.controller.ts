@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -49,5 +50,16 @@ export class ContactsController {
     @Req() request: Request,
   ) {
     return this.contactsService.update(publicId, payload, admin, request);
+  }
+
+  @Delete(':publicId')
+  @RequirePermissions('contacts.update')
+  @ApiOperation({ summary: 'Eliminar una solicitud de contacto' })
+  remove(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.contactsService.remove(publicId, admin, request);
   }
 }

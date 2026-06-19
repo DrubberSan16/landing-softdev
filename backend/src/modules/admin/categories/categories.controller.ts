@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -57,5 +58,16 @@ export class CategoriesController {
     @Req() request: Request,
   ) {
     return this.categoriesService.update(publicId, payload, admin, request);
+  }
+
+  @Delete(':publicId')
+  @RequirePermissions('categories.manage')
+  @ApiOperation({ summary: 'Eliminar una categoria sin proyectos asociados' })
+  remove(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.categoriesService.remove(publicId, admin, request);
   }
 }

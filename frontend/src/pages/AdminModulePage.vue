@@ -1,7 +1,7 @@
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import AdminPanelList from '../components/admin/AdminPanelList.vue'
+import AdminDataTable from '../components/admin/AdminDataTable.vue'
 import StatCard from '../components/StatCard.vue'
 import { adminApi } from '../services/api'
 
@@ -16,13 +16,17 @@ const moduleState = ref({
   sections: [],
 })
 const saving = ref(false)
+const workingAction = ref(false)
 const successMessage = ref('')
+const actionErrorMessage = ref('')
 const formFeedback = ref('')
 const formOptions = ref({
   categories: [],
   technologies: [],
   roles: [],
+  permissions: [],
   users: [],
+  notificationChannels: [],
 })
 const formState = ref({
   open: false,
@@ -189,6 +193,20 @@ function roleOptions() {
   }))
 }
 
+function permissionOptions() {
+  return formOptions.value.permissions.map((permission) => ({
+    label: `${permission.moduleName}: ${permission.description || permission.code}`,
+    value: permission.code,
+  }))
+}
+
+function notificationChannelOptions() {
+  return formOptions.value.notificationChannels.map((channel) => ({
+    label: channel.name,
+    value: channel.code,
+  }))
+}
+
 function userOptions() {
   return formOptions.value.users.map((user) => ({
     label: `${user.fullName} (${user.email})`,
@@ -200,7 +218,7 @@ function withEditMeta(item, type = '') {
   return {
     ...item,
     maintenanceType: type,
-    canEdit: true,
+    canEdit: item.canEdit ?? true,
   }
 }
 
@@ -219,7 +237,7 @@ const maintenanceConfigs = {
       { name: 'technologyPublicIds', label: 'Tecnologias', type: 'select', multiple: true, options: technologyOptions, fromItem: (item) => item.technologies?.map((tech) => tech.publicId) || [] },
       { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.project, default: 'draft', required: true },
       { name: 'visibility', label: 'Visibilidad', type: 'select', options: () => statusOptions.visibility, default: 'public', required: true },
-      { name: 'isFeatured', label: 'Destacado en landing', type: 'checkbox', default: false },
+      { name: 'isFeatured', label: 'Mostrar en landing page', type: 'checkbox', default: false, help: 'Al activarlo, el proyecto aparecerá como una card dinámica en la página principal cuando también esté publicado y sea público.' },
       { name: 'sortOrder', label: 'Orden', type: 'number', default: 0 },
       { name: 'versionLabel', label: 'Version', nullable: true },
       { name: 'clientName', label: 'Cliente', nullable: true },
@@ -231,6 +249,11 @@ const maintenanceConfigs = {
     ],
     create: (payload) => adminApi.createProject(payload),
     update: (item, payload) => adminApi.updateProject(item.publicId, payload),
+    remove: (item) => adminApi.deleteProject(item.publicId),
+    toggle: (item) => adminApi.updateProject(item.publicId, {
+      status: item.status === 'archived' ? 'draft' : 'archived',
+      isFeatured: item.status === 'archived' ? item.isFeatured : false,
+    }),
   },
   categories: {
     canCreate: true,
@@ -247,6 +270,8 @@ const maintenanceConfigs = {
     ],
     create: (payload) => adminApi.createCategory(payload),
     update: (item, payload) => adminApi.updateCategory(item.publicId, payload),
+    remove: (item) => adminApi.deleteCategory(item.publicId),
+    toggle: (item) => adminApi.updateCategory(item.publicId, { status: !item.status }),
   },
   technologies: {
     canCreate: true,
@@ -264,6 +289,8 @@ const maintenanceConfigs = {
     ],
     create: (payload) => adminApi.createTechnology(payload),
     update: (item, payload) => adminApi.updateTechnology(item.publicId, payload),
+    remove: (item) => adminApi.deleteTechnology(item.publicId),
+    toggle: (item) => adminApi.updateTechnology(item.publicId, { status: !item.status }),
   },
   contacts: {
     editTitle: (item) => `Actualizar ${item.fullName}`,
@@ -275,6 +302,7 @@ const maintenanceConfigs = {
       { name: 'adminNotes', label: 'Notas internas', type: 'textarea', nullable: true, full: true, help: 'Solo son visibles para el equipo administrativo.' },
     ],
     update: (item, payload) => adminApi.updateContact(item.publicId, payload),
+    remove: (item) => adminApi.deleteContact(item.publicId),
   },
   users: {
     canCreate: true,
@@ -294,9 +322,62 @@ const maintenanceConfigs = {
     ],
     create: (payload) => adminApi.createUser(payload),
     update: (item, payload) => adminApi.updateUser(item.publicId, payload),
+    remove: (item) => adminApi.deleteUser(item.publicId),
+    toggle: (item) => adminApi.updateUser(item.publicId, {
+      status: item.status === 'active' ? 'inactive' : 'active',
+    }),
+  },
+  roles: {
+    canCreate: true,
+    createLabel: 'Crear rol',
+    createTitle: 'Nuevo rol administrativo',
+    editTitle: (item) => `Editar ${item.name}`,
+    fields: () => [
+      { name: 'code', label: 'Código', required: true },
+      { name: 'name', label: 'Nombre', required: true },
+      { name: 'description', label: 'Descripción', type: 'textarea', nullable: true, full: true },
+      { name: 'permissionCodes', label: 'Permisos', type: 'select', multiple: true, options: permissionOptions, fromItem: (item) => item.permissions?.map((permission) => permission.code) || [] },
+      { name: 'status', label: 'Rol activo', type: 'checkbox', default: true },
+    ],
+    create: (payload) => adminApi.createRole(payload),
+    update: (item, payload) => adminApi.updateRole(item.code, payload),
+    remove: (item) => adminApi.deleteRole(item.code),
+    toggle: (item) => adminApi.updateRole(item.code, { status: !item.status }),
   },
   notifications: {
     types: {
+      channel: {
+        canCreate: true,
+        createTitle: 'Nuevo canal de notificación',
+        editTitle: (item) => `Editar canal ${item.name}`,
+        fields: () => [
+          { name: 'code', label: 'Código', required: true },
+          { name: 'name', label: 'Nombre', required: true },
+          { name: 'description', label: 'Descripción', type: 'textarea', nullable: true, full: true },
+          { name: 'isActive', label: 'Canal activo', type: 'checkbox', default: true },
+        ],
+        create: (payload) => adminApi.createNotificationChannel(payload),
+        update: (item, payload) => adminApi.updateNotificationChannel(item.id, payload),
+        remove: (item) => adminApi.deleteNotificationChannel(item.id),
+        toggle: (item) => adminApi.updateNotificationChannel(item.id, { isActive: !item.isActive }),
+      },
+      template: {
+        canCreate: true,
+        createTitle: 'Nueva plantilla de notificación',
+        editTitle: (item) => `Editar plantilla ${item.name}`,
+        fields: () => [
+          { name: 'eventCode', label: 'Código del evento', required: true },
+          { name: 'channelCode', label: 'Canal', type: 'select', options: notificationChannelOptions, required: true },
+          { name: 'name', label: 'Nombre', required: true },
+          { name: 'subjectTemplate', label: 'Plantilla del asunto', nullable: true, full: true },
+          { name: 'bodyTemplate', label: 'Plantilla del mensaje', type: 'textarea', required: true, full: true },
+          { name: 'isActive', label: 'Plantilla activa', type: 'checkbox', default: true },
+        ],
+        create: (payload) => adminApi.createNotificationTemplate(payload),
+        update: (item, payload) => adminApi.updateNotificationTemplate(item.id, payload),
+        remove: (item) => adminApi.deleteNotificationTemplate(item.id),
+        toggle: (item) => adminApi.updateNotificationTemplate(item.id, { isActive: !item.isActive }),
+      },
       queue: {
         editTitle: (item) => `Actualizar ${item.eventCode}`,
         fields: () => [
@@ -311,6 +392,7 @@ const maintenanceConfigs = {
           { name: 'isEnabled', label: 'Habilitada', type: 'checkbox', default: true },
         ],
         update: (item, payload) => adminApi.updateNotificationPreference(item.id, payload),
+        toggle: (item) => adminApi.updateNotificationPreference(item.id, { isEnabled: !item.isEnabled }),
       },
     },
   },
@@ -466,25 +548,28 @@ function updateDerivedFields(sourceName) {
     .forEach(syncDerivedField)
 }
 
-function openCreateForm() {
-  const config = getMaintenanceConfig()
+async function openCreateForm(type = '') {
+  const config = getMaintenanceConfig(type)
 
   if (!config?.canCreate) {
     return
   }
 
   successMessage.value = ''
+  actionErrorMessage.value = ''
   formFeedback.value = ''
   formState.value = {
     open: true,
     mode: 'create',
-    type: '',
+    type,
     item: null,
     values: buildInitialValues(config, null, 'create'),
   }
+  await nextTick()
+  document.querySelector('.admin-maintenance-card')?.scrollIntoView({ behavior: 'smooth' })
 }
 
-function openEditForm(item) {
+async function openEditForm(item) {
   const config = getMaintenanceConfig(item.maintenanceType || '')
 
   if (!config?.update) {
@@ -492,6 +577,7 @@ function openEditForm(item) {
   }
 
   successMessage.value = ''
+  actionErrorMessage.value = ''
   formFeedback.value = ''
   formState.value = {
     open: true,
@@ -500,6 +586,8 @@ function openEditForm(item) {
     item,
     values: buildInitialValues(config, item, 'edit'),
   }
+  await nextTick()
+  document.querySelector('.admin-maintenance-card')?.scrollIntoView({ behavior: 'smooth' })
 }
 
 function closeForm() {
@@ -538,9 +626,53 @@ async function submitMaintenance() {
   }
 }
 
+async function removeItem(item) {
+  const config = getMaintenanceConfig(item.maintenanceType || '')
+
+  if (!config?.remove || !window.confirm(`¿Eliminar definitivamente "${item.title || item.fullName || item.name || 'este registro'}"?`)) {
+    return
+  }
+
+  workingAction.value = true
+  successMessage.value = ''
+  actionErrorMessage.value = ''
+
+  try {
+    await config.remove(item)
+    successMessage.value = 'Registro eliminado correctamente.'
+    await loadModule()
+  } catch (error) {
+    actionErrorMessage.value = error.message
+  } finally {
+    workingAction.value = false
+  }
+}
+
+async function toggleItem(item) {
+  const config = getMaintenanceConfig(item.maintenanceType || '')
+
+  if (!config?.toggle) {
+    return
+  }
+
+  workingAction.value = true
+  successMessage.value = ''
+  actionErrorMessage.value = ''
+
+  try {
+    await config.toggle(item)
+    successMessage.value = 'Estado actualizado correctamente.'
+    await loadModule()
+  } catch (error) {
+    actionErrorMessage.value = error.message
+  } finally {
+    workingAction.value = false
+  }
+}
+
 async function loadProjectsModule() {
   const [payload, categories, technologies] = await Promise.all([
-    adminApi.getProjects({ page: 1, limit: 12 }),
+    adminApi.getProjects({ page: 1, limit: 100 }),
     adminApi.getCategories(),
     adminApi.getTechnologies(),
   ])
@@ -560,9 +692,19 @@ async function loadProjectsModule() {
     sections: [
       {
         eyebrow: 'Portafolio',
-        title: 'Proyectos recientes',
-        subtitle: 'Cada ficha resume cómo se publica el proyecto y el interés que ha generado.',
+        title: 'Proyectos',
+        subtitle: 'Cada fila resume cómo se publica el proyecto y el interés que ha generado.',
         editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Proyecto', key: 'title', secondaryKey: 'shortDescription', wide: true },
+          { label: 'URL', key: 'demoUrl', href: (item) => item.demoUrl, external: true, truncate: true },
+          { label: 'Categoría', key: 'categoryName', empty: 'Sin categoría' },
+          { label: 'Estado', value: (item) => formatStatus(item.status), secondary: (item) => formatStatus(item.visibility), type: 'status' },
+          { label: 'En landing', value: (item) => yesNo(item.isFeatured) },
+          { label: 'Rendimiento', value: (item) => `${formatNumber(item.totalProjectViews)} vistas`, secondary: (item) => `${formatNumber(item.totalDemoClicks)} clics` },
+        ],
         items: items.map((item) => withEditMeta({
           ...item,
           subtitle: item.shortDescription,
@@ -576,6 +718,9 @@ async function loadProjectsModule() {
             detail('Clics al demo', formatNumber(item.totalDemoClicks)),
           ],
           note: item.isFeatured ? 'Este proyecto está destacado en la landing.' : '',
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.status === 'archived' ? 'Reactivar' : 'Desactivar',
         })),
         emptyMessage: 'Aun no existen proyectos cargados.',
       },
@@ -602,12 +747,24 @@ async function loadCategoriesModule() {
         title: 'Listado actual',
         subtitle: 'Las categorías ayudan a los visitantes a entender y explorar el tipo de solución ofrecida.',
         editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Categoría', key: 'name', secondaryKey: 'slug' },
+          { label: 'Descripción', key: 'description', truncate: true, wide: true },
+          { label: 'Orden', key: 'sortOrder' },
+          { label: 'Estado', value: (item) => item.status ? 'Activa' : 'Inactiva', type: 'status' },
+          { label: 'Actualizada', value: (item) => formatDate(item.updatedAt) },
+        ],
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
           subtitle: item.description || 'Esta categoría todavía no tiene una descripción.',
           badge: item.status ? 'Activa' : 'Inactiva',
           details: [detail('Identificador web', item.slug), detail('Orden de aparición', item.sortOrder ?? 0)],
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.status ? 'Desactivar' : 'Activar',
         })),
         emptyMessage: 'No hay categorias creadas.',
       },
@@ -634,6 +791,15 @@ async function loadTechnologiesModule() {
         title: 'Stack administrado',
         subtitle: 'Tecnologías que se pueden asociar a los proyectos del portafolio.',
         editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Tecnología', key: 'name', secondaryKey: 'slug' },
+          { label: 'Descripción', key: 'description', truncate: true, wide: true },
+          { label: 'Sitio oficial', key: 'officialUrl', href: (item) => item.officialUrl, external: true, truncate: true },
+          { label: 'Color', key: 'colorHex' },
+          { label: 'Estado', value: (item) => item.status ? 'Activa' : 'Inactiva', type: 'status' },
+        ],
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
@@ -644,6 +810,9 @@ async function loadTechnologiesModule() {
             detail('Color', item.colorHex),
             detail('Sitio oficial', item.officialUrl, { href: item.officialUrl, external: true }),
           ],
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.status ? 'Desactivar' : 'Activar',
         })),
         emptyMessage: 'No hay tecnologias creadas.',
       },
@@ -653,7 +822,7 @@ async function loadTechnologiesModule() {
 
 async function loadContactsModule() {
   const [payload, usersPayload] = await Promise.all([
-    adminApi.getContacts({ page: 1, limit: 12 }),
+    adminApi.getContacts({ page: 1, limit: 100 }),
     adminApi.getUsers({ page: 1, limit: 100 }),
   ])
   const items = payload.items || []
@@ -671,10 +840,19 @@ async function loadContactsModule() {
     sections: [
       {
         eyebrow: 'Bandeja comercial',
-        title: 'Solicitudes recientes',
+        title: 'Solicitudes recibidas',
         subtitle: 'Ordenadas desde la más reciente. Usa “Gestionar solicitud” para asignar responsable, estado y notas internas.',
         editable: true,
+        deletable: true,
         actionLabel: 'Gestionar solicitud',
+        columns: [
+          { label: 'Persona', key: 'fullName', secondary: (item) => item.companyName || 'Sin empresa' },
+          { label: 'Contacto', key: 'email', href: (item) => item.email ? `mailto:${item.email}` : '', secondaryKey: 'phone' },
+          { label: 'Solicitud', key: 'subject', secondaryKey: 'message', truncate: true, wide: true },
+          { label: 'Proyecto', value: (item) => item.projectTitle || 'Consulta general', secondary: (item) => preferredContactLabel(item.preferredContactMethod) },
+          { label: 'Seguimiento', value: (item) => formatStatus(item.status), secondary: (item) => item.assignedToFullName || 'Sin asignar', type: 'status' },
+          { label: 'Recibida', value: (item) => formatDate(item.createdAt) },
+        ],
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.fullName,
@@ -697,6 +875,7 @@ async function loadContactsModule() {
           bodyLabel: 'Mensaje de la persona',
           body: item.message || 'La persona no incluyó un mensaje.',
           note: item.adminNotes ? `Nota interna: ${item.adminNotes}` : 'Sin notas internas todavía.',
+          canDelete: true,
         })),
         emptyMessage: 'Todavia no se reciben solicitudes.',
       },
@@ -706,7 +885,7 @@ async function loadContactsModule() {
 
 async function loadUsersModule() {
   const [payload, roles] = await Promise.all([
-    adminApi.getUsers({ page: 1, limit: 12 }),
+    adminApi.getUsers({ page: 1, limit: 100 }),
     adminApi.getRoles(),
   ])
   const items = payload.items || []
@@ -724,9 +903,18 @@ async function loadUsersModule() {
     sections: [
       {
         eyebrow: 'Acceso al panel',
-        title: 'Usuarios recientes',
+        title: 'Usuarios administrativos',
         subtitle: 'Personas que pueden iniciar sesión en este panel y permisos asociados a su cuenta.',
         editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Usuario', key: 'fullName', secondaryKey: 'email' },
+          { label: 'Teléfono', key: 'phone' },
+          { label: 'Roles', value: (item) => item.roles?.map((role) => role.name).join(', ') || 'Sin roles', wide: true },
+          { label: 'Estado', value: (item) => formatStatus(item.status), type: 'status' },
+          { label: 'Último acceso', value: (item) => item.lastLoginAt ? formatDate(item.lastLoginAt) : 'Nunca' },
+        ],
         items: items.map((item) => withEditMeta({
           ...item,
           subtitle: item.email,
@@ -737,6 +925,9 @@ async function loadUsersModule() {
             detail('Último acceso', item.lastLoginAt ? formatDate(item.lastLoginAt) : 'Nunca ha ingresado'),
             detail('Cambio de contraseña pendiente', yesNo(item.mustChangePassword)),
           ],
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.status === 'active' ? 'Desactivar' : 'Activar',
         })),
         emptyMessage: 'No hay usuarios administrativos registrados.',
       },
@@ -744,6 +935,12 @@ async function loadUsersModule() {
         eyebrow: 'Perfiles de acceso',
         title: 'Roles disponibles',
         subtitle: 'Perfiles que pueden asignarse a los usuarios.',
+        columns: [
+          { label: 'Rol', key: 'name', secondaryKey: 'code' },
+          { label: 'Descripción', key: 'description', wide: true },
+          { label: 'Permisos', value: (item) => item.permissions?.length || 0 },
+          { label: 'Tipo', value: (item) => item.isSystem ? 'Sistema' : 'Personalizado', type: 'status' },
+        ],
         items: roles.map((item) => ({
           ...item,
           title: item.name,
@@ -759,6 +956,8 @@ async function loadUsersModule() {
 
 async function loadRolesModule() {
   const [roles, permissions] = await Promise.all([adminApi.getRoles(), adminApi.getPermissions()])
+  formOptions.value.roles = roles
+  formOptions.value.permissions = permissions
 
   return {
     eyebrow: 'Seguridad operativa',
@@ -774,7 +973,17 @@ async function loadRolesModule() {
         eyebrow: 'Perfiles de acceso',
         title: 'Roles registrados',
         subtitle: 'Cada rol agrega una combinacion de permisos operativos.',
-        items: roles.map((item) => ({
+        editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Rol', key: 'name', secondaryKey: 'code' },
+          { label: 'Descripción', key: 'description', wide: true },
+          { label: 'Permisos', value: (item) => item.permissions?.length || 0 },
+          { label: 'Tipo', value: (item) => item.isSystem ? 'Sistema' : 'Personalizado', type: 'status' },
+          { label: 'Estado', value: (item) => item.status ? 'Activo' : 'Inactivo', type: 'status' },
+        ],
+        items: roles.map((item) => withEditMeta({
           ...item,
           title: item.name,
           subtitle: item.description || item.code,
@@ -784,6 +993,10 @@ async function loadRolesModule() {
             detail('Rol protegido del sistema', yesNo(item.isSystem)),
             detail('Permisos incluidos', item.permissions?.map((permission) => permission.code).join(', ')),
           ],
+          canEdit: !item.isSystem,
+          canDelete: !item.isSystem,
+          canToggle: !item.isSystem,
+          toggleLabel: item.status ? 'Desactivar' : 'Activar',
         })),
         emptyMessage: 'No hay roles disponibles.',
       },
@@ -791,6 +1004,12 @@ async function loadRolesModule() {
         eyebrow: 'Acciones autorizadas',
         title: 'Catalogo de permisos',
         subtitle: 'Permisos utilizables para construir reglas de acceso.',
+        columns: [
+          { label: 'Código', key: 'code' },
+          { label: 'Descripción', key: 'description', wide: true },
+          { label: 'Módulo', key: 'moduleName' },
+          { label: 'Acción', key: 'actionName', type: 'status' },
+        ],
         items: permissions.map((item) => ({
           ...item,
           title: item.code,
@@ -825,6 +1044,14 @@ async function loadMetricsModule() {
         eyebrow: 'Rendimiento comercial',
         title: 'Metricas por proyecto',
         subtitle: 'Compara el recorrido desde la visita al proyecto hasta la solicitud de contacto.',
+        columns: [
+          { label: 'Proyecto', key: 'title', secondaryKey: 'slug' },
+          { label: 'Vistas', value: (item) => formatNumber(item.totalProjectViews) },
+          { label: 'Visitantes únicos', value: (item) => formatNumber(item.totalUniqueVisitors) },
+          { label: 'Clics al demo', value: (item) => formatNumber(item.totalDemoClicks) },
+          { label: 'Solicitudes', value: (item) => formatNumber(item.totalContactRequests) },
+          { label: 'Conversión', value: (item) => `${item.conversionRate || 0}%`, type: 'status' },
+        ],
         items: projectMetrics.map((item) => ({
           ...item,
           title: item.title,
@@ -843,6 +1070,10 @@ async function loadMetricsModule() {
         eyebrow: 'Interés en demos',
         title: 'Top de clicks al demo',
         subtitle: 'Demos con mayor intencion de exploracion funcional.',
+        columns: [
+          { label: 'Proyecto', key: 'title', secondaryKey: 'slug', wide: true },
+          { label: 'Clics al demo', value: (item) => formatNumber(item.totalClicks), type: 'status' },
+        ],
         items: topDemoClicks.map((item) => ({
           ...item,
           title: item.title,
@@ -858,12 +1089,13 @@ async function loadMetricsModule() {
 
 async function loadNotificationsModule() {
   const [queuePayload, channels, templates, preferences] = await Promise.all([
-    adminApi.getNotificationQueue({ page: 1, limit: 12 }),
+    adminApi.getNotificationQueue({ page: 1, limit: 100 }),
     adminApi.getNotificationChannels(),
     adminApi.getNotificationTemplates(),
     adminApi.getNotificationPreferences(),
   ])
   const queue = queuePayload.items || []
+  formOptions.value.notificationChannels = channels
 
   return {
     eyebrow: 'Alertas y seguimiento',
@@ -881,6 +1113,14 @@ async function loadNotificationsModule() {
         subtitle: 'Los eventos pendientes aún no se envían; los fallidos requieren revisar el detalle del error.',
         editable: true,
         actionLabel: 'Revisar envío',
+        columns: [
+          { label: 'Evento', key: 'eventCode', secondary: (item) => item.templateName || 'Sin plantilla' },
+          { label: 'Destinatario', value: (item) => item.recipientName || item.recipientTo, secondaryKey: 'recipientTo' },
+          { label: 'Canal', key: 'channelName' },
+          { label: 'Estado', value: (item) => formatStatus(item.status), secondary: (item) => item.errorMessage || '', type: 'status' },
+          { label: 'Intentos', value: (item) => `${item.attempts || 0} de ${item.maxAttempts || 0}` },
+          { label: 'Creada', value: (item) => formatDate(item.createdAt) },
+        ],
         items: queue.map((item) => withEditMeta({
           ...item,
           title: item.subjectOverride || item.templateName || item.eventCode,
@@ -901,38 +1141,72 @@ async function loadNotificationsModule() {
       },
       {
         eyebrow: 'Configuración de entrega',
-        title: 'Canales y plantillas',
-        subtitle: 'Base de entrega automatica definida en el sistema.',
-        items: [
-          ...channels.map((item) => ({
-            ...item,
-            title: item.name,
-            subtitle: item.description || item.code,
-            badge: item.isActive ? 'Canal activo' : 'Canal inactivo',
-            details: [detail('Código interno', item.code)],
-          })),
-          ...templates.slice(0, 6).map((item) => ({
-            ...item,
-            title: item.name,
-            subtitle: `${item.eventCode} | ${item.channelName}`,
-            badge: item.isActive ? 'Plantilla activa' : 'Plantilla inactiva',
-            details: [detail('Asunto', item.subjectTemplate)],
-          })),
+        title: 'Canales',
+        subtitle: 'Medios disponibles para enviar notificaciones automáticas.',
+        maintenanceType: 'channel',
+        createLabel: 'Crear canal',
+        editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Canal', key: 'name', secondaryKey: 'code' },
+          { label: 'Descripción', key: 'description', wide: true },
+          { label: 'Estado', value: (item) => item.isActive ? 'Activo' : 'Inactivo', type: 'status' },
         ],
-        emptyMessage: 'No hay canales ni plantillas configuradas.',
+        items: channels.map((item) => withEditMeta({
+          ...item,
+          title: item.name,
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.isActive ? 'Desactivar' : 'Activar',
+        }, 'channel')),
+        emptyMessage: 'No hay canales configurados.',
+      },
+      {
+        eyebrow: 'Mensajes automáticos',
+        title: 'Plantillas',
+        subtitle: 'Contenido utilizado para cada evento y canal.',
+        maintenanceType: 'template',
+        createLabel: 'Crear plantilla',
+        editable: true,
+        deletable: true,
+        toggleable: true,
+        columns: [
+          { label: 'Plantilla', key: 'name', secondaryKey: 'eventCode' },
+          { label: 'Canal', key: 'channelName' },
+          { label: 'Asunto', key: 'subjectTemplate', wide: true, truncate: true },
+          { label: 'Estado', value: (item) => item.isActive ? 'Activa' : 'Inactiva', type: 'status' },
+        ],
+        items: templates.map((item) => withEditMeta({
+          ...item,
+          title: item.name,
+          canDelete: true,
+          canToggle: true,
+          toggleLabel: item.isActive ? 'Desactivar' : 'Activar',
+        }, 'template')),
+        emptyMessage: 'No hay plantillas configuradas.',
       },
       {
         eyebrow: 'Preferencias personales',
         title: 'Preferencias administrativas',
         subtitle: 'Configuracion por usuario y canal para eventos del sistema.',
         editable: true,
+        toggleable: true,
         actionLabel: 'Cambiar preferencia',
-        items: preferences.slice(0, 12).map((item) => withEditMeta({
+        columns: [
+          { label: 'Administrador', key: 'adminUserFullName' },
+          { label: 'Evento', key: 'eventCode', wide: true },
+          { label: 'Canal', key: 'channelName' },
+          { label: 'Estado', value: (item) => item.isEnabled ? 'Habilitada' : 'Deshabilitada', type: 'status' },
+        ],
+        items: preferences.map((item) => withEditMeta({
           ...item,
           title: item.adminUserFullName,
           subtitle: `Evento: ${item.eventCode}`,
           badge: item.isEnabled ? 'Habilitada' : 'Deshabilitada',
           details: [detail('Canal', item.channelName)],
+          canToggle: true,
+          toggleLabel: item.isEnabled ? 'Desactivar' : 'Activar',
         }, 'preference')),
         emptyMessage: 'No hay preferencias definidas.',
       },
@@ -941,7 +1215,7 @@ async function loadNotificationsModule() {
 }
 
 async function loadAuditModule() {
-  const payload = await adminApi.getAuditLogs({ page: 1, limit: 12 })
+  const payload = await adminApi.getAuditLogs({ page: 1, limit: 100 })
   const items = payload.items || []
 
   return {
@@ -958,6 +1232,13 @@ async function loadAuditModule() {
         eyebrow: 'Historial de cambios',
         title: 'Registro reciente',
         subtitle: 'Las acciones más recientes aparecen primero y permiten rastrear cambios administrativos.',
+        columns: [
+          { label: 'Acción', key: 'description', secondaryKey: 'actionCode', wide: true },
+          { label: 'Usuario', value: (item) => item.adminUserFullName || 'Sistema', secondaryKey: 'adminUserEmail' },
+          { label: 'Entidad', key: 'entityName', secondary: (item) => item.entityId ? `Registro ${item.entityId}` : '' },
+          { label: 'IP', key: 'ipAddress' },
+          { label: 'Fecha', value: (item) => formatDate(item.createdAt) },
+        ],
         items: items.map((item) => ({
           ...item,
           title: item.description || item.actionCode,
@@ -1000,6 +1281,7 @@ async function loadModule() {
 
   loading.value = true
   errorMessage.value = ''
+  actionErrorMessage.value = ''
 
   try {
     moduleState.value = await loader()
@@ -1026,7 +1308,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           v-if="currentMaintenanceConfig?.canCreate"
           class="button button--primary"
           type="button"
-          @click="openCreateForm"
+          @click="openCreateForm()"
         >
           {{ currentMaintenanceConfig.createLabel || 'Crear registro' }}
         </button>
@@ -1034,6 +1316,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
     </header>
 
     <p v-if="successMessage" class="form-message form-message--success">{{ successMessage }}</p>
+    <p v-if="actionErrorMessage" class="form-message form-message--error">{{ actionErrorMessage }}</p>
 
     <section v-if="formState.open" class="admin-panel-card admin-maintenance-card">
       <div class="admin-panel-card__header">
@@ -1066,7 +1349,10 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
             class="checkbox-field maintenance-form__checkbox"
           >
             <input v-model="formState.values[field.name]" type="checkbox" />
-            <span>{{ field.label }}</span>
+            <span>
+              {{ field.label }}
+              <small v-if="field.help" class="field-help">{{ field.help }}</small>
+            </span>
           </label>
 
           <label v-else :class="{ 'lead-form__full': field.full || field.type === 'textarea' || field.multiple }">
@@ -1137,18 +1423,26 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
         />
       </section>
 
-      <section class="admin-grid" :class="{ 'admin-grid--stack': moduleState.sections?.length > 2 }">
-        <AdminPanelList
+      <section class="admin-grid admin-grid--stack">
+        <AdminDataTable
           v-for="section in moduleState.sections"
           :key="section.title"
           :title="section.title"
           :subtitle="section.subtitle"
           :eyebrow="section.eyebrow"
           :items="section.items"
+          :columns="section.columns"
           :empty-message="section.emptyMessage"
           :editable="!!section.editable"
+          :deletable="!!section.deletable"
+          :toggleable="!!section.toggleable"
+          :busy="workingAction"
+          :create-label="section.createLabel"
           :action-label="section.actionLabel || 'Editar'"
           @edit="openEditForm"
+          @create="openCreateForm(section.maintenanceType)"
+          @remove="removeItem"
+          @toggle="toggleItem"
         />
       </section>
     </template>

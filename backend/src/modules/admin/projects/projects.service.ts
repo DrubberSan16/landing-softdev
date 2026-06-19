@@ -325,6 +325,55 @@ export class ProjectsService {
     });
   }
 
+  async remove(publicId: string, admin: CurrentAdmin, request: Request) {
+    const existing = await this.databaseService.one<ProjectIdentity>(
+      `
+        SELECT
+          id,
+          public_id AS "publicId",
+          title,
+          slug,
+          status,
+          published_at AS "publishedAt"
+        FROM landing_core.tb_projects
+        WHERE public_id = $1::uuid
+          AND deleted_at IS NULL
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro el proyecto solicitado.');
+    }
+
+    await this.databaseService.query(
+      `
+        UPDATE landing_core.tb_projects
+        SET
+          deleted_at = NOW(),
+          status = 'archived',
+          visibility = 'hidden',
+          is_featured = FALSE,
+          updated_by = $2,
+          updated_at = NOW()
+        WHERE public_id = $1::uuid
+      `,
+      [publicId, admin.id],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'projects.delete',
+      entityName: 'tb_projects',
+      entityId: existing.id,
+      description: `Proyecto eliminado: ${existing.title}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Proyecto eliminado correctamente.' };
+  }
+
   async listMedia(projectPublicId: string) {
     const project = await this.getProjectIdentity(projectPublicId);
 

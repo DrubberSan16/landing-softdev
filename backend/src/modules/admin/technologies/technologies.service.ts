@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { DatabaseService } from '../../../common/database/database.service';
 import { CurrentAdmin } from '../../../common/interfaces/current-admin.interface';
@@ -164,5 +168,53 @@ export class TechnologiesService {
     });
 
     return updated;
+  }
+
+  async remove(publicId: string, admin: CurrentAdmin, request: Request) {
+    const existing = await this.databaseService.one<{
+      id: number;
+      name: string;
+      projectCount: string;
+    }>(
+      `
+        SELECT
+          t.id,
+          t.name,
+          COUNT(pt.id)::text AS "projectCount"
+        FROM landing_core.tb_technologies t
+        LEFT JOIN landing_core.tb_project_technologies pt
+          ON pt.technology_id = t.id
+        WHERE t.public_id = $1::uuid
+        GROUP BY t.id
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro la tecnologia solicitada.');
+    }
+
+    if (Number(existing.projectCount) > 0) {
+      throw new ConflictException(
+        'La tecnologia esta asociada a proyectos. Desactivala en lugar de eliminarla.',
+      );
+    }
+
+    await this.databaseService.query(
+      `DELETE FROM landing_core.tb_technologies WHERE id = $1`,
+      [existing.id],
+    );
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'technologies.delete',
+      entityName: 'tb_technologies',
+      entityId: existing.id,
+      description: `Tecnologia eliminada: ${existing.name}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Tecnologia eliminada correctamente.' };
   }
 }

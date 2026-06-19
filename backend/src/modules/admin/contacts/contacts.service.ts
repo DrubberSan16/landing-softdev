@@ -251,4 +251,62 @@ export class ContactsService {
 
     return this.findOne(publicId);
   }
+
+  async remove(publicId: string, admin: CurrentAdmin, request: Request) {
+    const existing = await this.databaseService.one<{
+      id: number;
+      fullName: string;
+      email: string;
+      projectId: number | null;
+    }>(
+      `
+        SELECT
+          id,
+          full_name AS "fullName",
+          email::varchar AS email,
+          project_id AS "projectId"
+        FROM landing_core.tb_contact_requests
+        WHERE public_id = $1::uuid
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro la solicitud solicitada.');
+    }
+
+    await this.databaseService.transaction(async (client) => {
+      await this.databaseService.query(
+        `DELETE FROM landing_core.tb_contact_requests WHERE id = $1`,
+        [existing.id],
+        client,
+      );
+
+      if (existing.projectId) {
+        await this.databaseService.query(
+          `
+            UPDATE landing_core.tb_projects
+            SET
+              total_contact_requests = GREATEST(total_contact_requests - 1, 0),
+              updated_at = NOW()
+            WHERE id = $1
+          `,
+          [existing.projectId],
+          client,
+        );
+      }
+    });
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'contacts.delete',
+      entityName: 'tb_contact_requests',
+      entityId: existing.id,
+      description: `Solicitud eliminada: ${existing.fullName}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Solicitud eliminada correctamente.' };
+  }
 }

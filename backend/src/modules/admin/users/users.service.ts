@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { hash } from 'bcryptjs';
 import { Request } from 'express';
 import { PoolClient } from 'pg';
@@ -233,6 +237,66 @@ export class UsersService {
     });
 
     return this.findOne(publicId);
+  }
+
+  async remove(publicId: string, admin: CurrentAdmin, request: Request) {
+    if (publicId === admin.publicId) {
+      throw new BadRequestException(
+        'No puedes eliminar el usuario de tu propia sesion.',
+      );
+    }
+
+    const existing = await this.databaseService.one<{
+      id: number;
+      fullName: string;
+      email: string;
+      status: string;
+    }>(
+      `
+        SELECT
+          id,
+          full_name AS "fullName",
+          email::varchar AS email,
+          status
+        FROM landing_core.tb_admin_users
+        WHERE public_id = $1::uuid
+          AND deleted_at IS NULL
+      `,
+      [publicId],
+    );
+
+    if (!existing) {
+      throw new NotFoundException('No se encontro el usuario administrativo.');
+    }
+
+    await this.databaseService.transaction(async (client) => {
+      await this.databaseService.query(
+        `
+          UPDATE landing_core.tb_admin_users
+          SET status = 'inactive', deleted_at = NOW(), updated_at = NOW()
+          WHERE id = $1
+        `,
+        [existing.id],
+        client,
+      );
+      await this.databaseService.query(
+        `DELETE FROM landing_core.tb_admin_auth_sessions WHERE admin_user_id = $1`,
+        [existing.id],
+        client,
+      );
+    });
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'admin_users.delete',
+      entityName: 'tb_admin_users',
+      entityId: existing.id,
+      description: `Usuario administrativo eliminado: ${existing.fullName}`,
+      oldData: existing as Record<string, unknown>,
+      request,
+    });
+
+    return { message: 'Usuario eliminado correctamente.' };
   }
 
   private async createUser(

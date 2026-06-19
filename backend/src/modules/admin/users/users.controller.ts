@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -77,5 +78,16 @@ export class UsersController {
     @Req() request: Request,
   ) {
     return this.usersService.updateRoles(publicId, payload, admin, request);
+  }
+
+  @Delete(':publicId')
+  @RequirePermissions('admin_users.manage')
+  @ApiOperation({ summary: 'Eliminar logicamente un usuario administrativo' })
+  remove(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.usersService.remove(publicId, admin, request);
   }
 }

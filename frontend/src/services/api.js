@@ -136,6 +136,14 @@ export const adminApi = {
       body: JSON.stringify(payload),
     })
   },
+  deleteProject(publicId) {
+    return request(`/admin/projects/${publicId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
   getCategories() {
     return request('/admin/categories', {
       headers: {
@@ -159,6 +167,14 @@ export const adminApi = {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
       body: JSON.stringify(payload),
+    })
+  },
+  deleteCategory(publicId) {
+    return request(`/admin/categories/${publicId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
     })
   },
   getTechnologies() {
@@ -186,6 +202,14 @@ export const adminApi = {
       body: JSON.stringify(payload),
     })
   },
+  deleteTechnology(publicId) {
+    return request(`/admin/technologies/${publicId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
   getContacts(query) {
     return request(
       '/admin/contact-requests',
@@ -204,6 +228,14 @@ export const adminApi = {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
       body: JSON.stringify(payload),
+    })
+  },
+  deleteContact(publicId) {
+    return request(`/admin/contact-requests/${publicId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
     })
   },
   getUsers(query) {
@@ -235,6 +267,14 @@ export const adminApi = {
       body: JSON.stringify(payload),
     })
   },
+  deleteUser(publicId) {
+    return request(`/admin/users/${publicId}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
   getRoles() {
     return request('/admin/roles', {
       headers: {
@@ -244,6 +284,32 @@ export const adminApi = {
   },
   getPermissions() {
     return request('/admin/roles/permissions', {
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
+  createRole(payload) {
+    return request('/admin/roles', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateRole(code, payload) {
+    return request(`/admin/roles/${encodeURIComponent(code)}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  deleteRole(code) {
+    return request(`/admin/roles/${encodeURIComponent(code)}`, {
+      method: 'DELETE',
       headers: {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
@@ -288,8 +354,60 @@ export const adminApi = {
       },
     })
   },
+  createNotificationChannel(payload) {
+    return request('/admin/notifications/channels', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateNotificationChannel(id, payload) {
+    return request(`/admin/notifications/channels/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  deleteNotificationChannel(id) {
+    return request(`/admin/notifications/channels/${id}`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
   getNotificationTemplates() {
     return request('/admin/notifications/templates', {
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
+  createNotificationTemplate(payload) {
+    return request('/admin/notifications/templates', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  updateNotificationTemplate(id, payload) {
+    return request(`/admin/notifications/templates/${id}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body: JSON.stringify(payload),
+    })
+  },
+  deleteNotificationTemplate(id) {
+    return request(`/admin/notifications/templates/${id}`, {
+      method: 'DELETE',
       headers: {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
