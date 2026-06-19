@@ -2,12 +2,15 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Param,
   Post,
   Query,
   Redirect,
   Req,
+  StreamableFile,
 } from '@nestjs/common';
+import { readProjectImage } from '../../common/uploads/project-image-upload.util';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CreateContactRequestDto } from './dto/create-contact-request.dto';
 import { PublicProjectQueryDto } from './dto/public-project-query.dto';
@@ -25,6 +28,18 @@ export class PublicController {
   @ApiOperation({ summary: 'Obtener datos base de la landing publica' })
   getHomeData() {
     return this.publicService.getHomeData();
+  }
+
+  @Get('uploads/projects/:filename')
+  @Header('Cache-Control', 'public, max-age=31536000, immutable')
+  @Header('X-Content-Type-Options', 'nosniff')
+  @ApiOperation({ summary: 'Obtener una imagen publica de proyecto' })
+  async getProjectImage(@Param('filename') filename: string) {
+    const image = await readProjectImage(filename);
+    return new StreamableFile(image.buffer, {
+      type: image.contentType,
+      length: image.buffer.length,
+    });
   }
 
   @Get('projects')

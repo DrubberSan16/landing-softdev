@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,11 +9,27 @@ import {
   Post,
   Query,
   Req,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
 import { CurrentAdminUser } from '../../../common/decorators/current-admin.decorator';
 import { RequirePermissions } from '../../../common/decorators/permissions.decorator';
+import {
+  PROJECT_IMAGE_MAX_BYTES,
+  PROJECT_IMAGE_MIME_TYPES,
+  saveProjectImage,
+} from '../../../common/uploads/project-image-upload.util';
 import { SessionAuthGuard } from '../auth/session-auth.guard';
 import {
   CreateProjectMediaDto,
@@ -29,7 +46,10 @@ import type { CurrentAdmin } from '../../../common/interfaces/current-admin.inte
 @UseGuards(SessionAuthGuard)
 @Controller('admin/projects')
 export class ProjectsController {
-  constructor(private readonly projectsService: ProjectsService) {}
+  constructor(
+    private readonly projectsService: ProjectsService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @Get()
   @RequirePermissions('projects.read')
@@ -54,6 +74,56 @@ export class ProjectsController {
     @Req() request: Request,
   ) {
     return this.projectsService.create(payload, admin, request);
+  }
+
+  @Post('uploads/cover')
+  @RequirePermissions('projects.create')
+  @UseInterceptors(
+    FileInterceptor('image', {
+      storage: memoryStorage(),
+      limits: { fileSize: PROJECT_IMAGE_MAX_BYTES, files: 1 },
+      fileFilter: (_request, file, callback) => {
+        if (!PROJECT_IMAGE_MIME_TYPES.includes(file.mimetype)) {
+          callback(
+            new BadRequestException(
+              'El archivo debe ser una imagen JPEG, PNG o WebP.',
+            ),
+            false,
+          );
+          return;
+        }
+
+        callback(null, true);
+      },
+    }),
+  )
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: { type: 'string', format: 'binary' },
+      },
+      required: ['image'],
+    },
+  })
+  @ApiOperation({ summary: 'Subir imagen principal de un proyecto' })
+  async uploadCover(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() request: Request,
+  ) {
+    const filename = await saveProjectImage(file);
+    const forwardedProtocol = request.headers['x-forwarded-proto'];
+    const protocol = Array.isArray(forwardedProtocol)
+      ? forwardedProtocol[0]
+      : forwardedProtocol?.split(',')[0]?.trim() || request.protocol;
+    const host = request.get('host');
+    const apiPrefix = this.configService.get<string>('API_PREFIX', 'api');
+
+    return {
+      filename,
+      url: `${protocol}://${host}/${apiPrefix}/public/uploads/projects/${filename}`,
+    };
   }
 
   @Patch(':publicId')

@@ -39,6 +39,12 @@ const deleteState = ref({
   open: false,
   item: null,
 })
+const statusState = ref({
+  open: false,
+  item: null,
+})
+const pendingFiles = ref({})
+const filePreviews = ref({})
 
 const statusOptions = {
   boolean: [
@@ -246,7 +252,16 @@ const maintenanceConfigs = {
       { name: 'versionLabel', label: 'Version', nullable: true },
       { name: 'clientName', label: 'Cliente', nullable: true },
       { name: 'businessSector', label: 'Sector', nullable: true },
-      { name: 'coverImageUrl', label: 'Imagen principal', type: 'url', nullable: true, full: true },
+      {
+        name: 'coverImageUrl',
+        label: 'Imagen principal',
+        type: 'file',
+        accept: 'image/jpeg,image/png,image/webp',
+        nullable: true,
+        full: true,
+        help: 'Selecciona una imagen JPEG, PNG o WebP de hasta 5 MB.',
+        upload: (file) => adminApi.uploadProjectCover(file),
+      },
       { name: 'fullDescription', label: 'Descripcion completa', type: 'textarea', nullable: true, full: true },
       { name: 'metaTitle', label: 'Meta titulo', nullable: true },
       { name: 'metaDescription', label: 'Meta descripcion', type: 'textarea', nullable: true, full: true },
@@ -564,6 +579,64 @@ function updateSelectField(field, event) {
   formState.value.values[field.name] = selectedOption?._value ?? event.target.value
 }
 
+function clearPendingFiles() {
+  Object.values(filePreviews.value).forEach((preview) => {
+    if (preview) {
+      URL.revokeObjectURL(preview)
+    }
+  })
+  pendingFiles.value = {}
+  filePreviews.value = {}
+}
+
+function updateFileField(field, event) {
+  const file = event.target.files?.[0]
+
+  if (!file) {
+    return
+  }
+
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    formFeedback.value = 'La imagen debe estar en formato JPEG, PNG o WebP.'
+    event.target.value = ''
+    return
+  }
+
+  if (file.size > 5 * 1024 * 1024) {
+    formFeedback.value = 'La imagen no puede superar los 5 MB.'
+    event.target.value = ''
+    return
+  }
+
+  formFeedback.value = ''
+
+  if (filePreviews.value[field.name]) {
+    URL.revokeObjectURL(filePreviews.value[field.name])
+  }
+
+  pendingFiles.value[field.name] = file
+  filePreviews.value[field.name] = URL.createObjectURL(file)
+}
+
+async function uploadPendingFiles() {
+  for (const field of activeFields.value.filter((item) => item.type === 'file')) {
+    const file = pendingFiles.value[field.name]
+
+    if (!file) {
+      continue
+    }
+
+    const result = await field.upload(file)
+    formState.value.values[field.name] = result.url
+    pendingFiles.value[field.name] = null
+
+    if (filePreviews.value[field.name]) {
+      URL.revokeObjectURL(filePreviews.value[field.name])
+      filePreviews.value[field.name] = ''
+    }
+  }
+}
+
 async function openCreateForm(type = '') {
   const config = getMaintenanceConfig(type)
 
@@ -574,6 +647,7 @@ async function openCreateForm(type = '') {
   successMessage.value = ''
   actionErrorMessage.value = ''
   formFeedback.value = ''
+  clearPendingFiles()
   formState.value = {
     open: true,
     mode: 'create',
@@ -593,6 +667,7 @@ async function openEditForm(item) {
   successMessage.value = ''
   actionErrorMessage.value = ''
   formFeedback.value = ''
+  clearPendingFiles()
   formState.value = {
     open: true,
     mode: 'edit',
@@ -605,6 +680,7 @@ async function openEditForm(item) {
 function closeForm() {
   formState.value.open = false
   formFeedback.value = ''
+  clearPendingFiles()
 }
 
 async function submitMaintenance() {
@@ -620,6 +696,7 @@ async function submitMaintenance() {
 
   try {
     activeFields.value.forEach(syncDerivedField)
+    await uploadPendingFiles()
     const payload = buildPayload(config)
 
     if (formState.value.mode === 'create') {
@@ -688,15 +765,21 @@ function handleModalKeydown(event) {
 
   if (deleteState.value.open) {
     closeDeleteModal()
+  } else if (statusState.value.open) {
+    closeStatusModal()
   } else if (formState.value.open && !saving.value) {
     closeForm()
   }
 }
 
 watch(
-  [() => formState.value.open, () => deleteState.value.open],
-  ([formOpen, deleteOpen]) => {
-    document.body.classList.toggle('modal-open', formOpen || deleteOpen)
+  [
+    () => formState.value.open,
+    () => deleteState.value.open,
+    () => statusState.value.open,
+  ],
+  ([formOpen, deleteOpen, statusOpen]) => {
+    document.body.classList.toggle('modal-open', formOpen || deleteOpen || statusOpen)
   },
 )
 
@@ -706,13 +789,34 @@ if (typeof window !== 'undefined') {
 
 onBeforeUnmount(() => {
   document.body.classList.remove('modal-open')
+  clearPendingFiles()
   window.removeEventListener('keydown', handleModalKeydown)
 })
 
-async function toggleItem(item) {
+function requestToggle(item) {
   const config = getMaintenanceConfig(item.maintenanceType || '')
 
   if (!config?.toggle) {
+    return
+  }
+
+  actionErrorMessage.value = ''
+  statusState.value = { open: true, item }
+}
+
+function closeStatusModal() {
+  if (workingAction.value) {
+    return
+  }
+
+  statusState.value = { open: false, item: null }
+}
+
+async function confirmToggle() {
+  const item = statusState.value.item
+  const config = item ? getMaintenanceConfig(item.maintenanceType || '') : null
+
+  if (!item || !config?.toggle) {
     return
   }
 
@@ -722,6 +826,7 @@ async function toggleItem(item) {
 
   try {
     await config.toggle(item)
+    statusState.value = { open: false, item: null }
     successMessage.value = 'Estado actualizado correctamente.'
     await loadModule()
   } catch (error) {
@@ -1453,6 +1558,25 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
               </option>
             </select>
 
+            <template v-else-if="field.type === 'file'">
+              <input
+                type="file"
+                :accept="field.accept"
+                :required="isFieldRequired(field) && !formState.values[field.name]"
+                @change="updateFileField(field, $event)"
+              />
+              <div
+                v-if="filePreviews[field.name] || formState.values[field.name]"
+                class="admin-file-preview"
+              >
+                <img
+                  :src="filePreviews[field.name] || formState.values[field.name]"
+                  :alt="pendingFiles[field.name]?.name || 'Imagen actual del proyecto'"
+                />
+                <span>{{ pendingFiles[field.name]?.name || 'Imagen actual guardada' }}</span>
+              </div>
+            </template>
+
             <input
               v-else
               v-model="formState.values[field.name]"
@@ -1507,6 +1631,37 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           </div>
         </section>
       </div>
+
+      <div
+        v-if="statusState.open"
+        class="admin-modal-backdrop"
+        @mousedown.self="closeStatusModal"
+      >
+        <section
+          class="admin-panel-card admin-delete-modal admin-status-modal"
+          role="alertdialog"
+          aria-modal="true"
+          aria-labelledby="status-modal-title"
+        >
+          <p class="section__eyebrow">Confirmar cambio de estado</p>
+          <h2 id="status-modal-title">
+            ¿{{ statusState.item?.toggleLabel || 'Cambiar estado' }} este registro?
+          </h2>
+          <p>
+            Se actualizará el estado de
+            <strong>{{ statusState.item?.title || statusState.item?.fullName || statusState.item?.name || 'el registro seleccionado' }}</strong>.
+          </p>
+          <p v-if="actionErrorMessage" class="form-message form-message--error">{{ actionErrorMessage }}</p>
+          <div class="admin-delete-modal__actions">
+            <button class="button button--secondary" type="button" :disabled="workingAction" @click="closeStatusModal">
+              Cancelar
+            </button>
+            <button class="button button--primary" type="button" :disabled="workingAction" @click="confirmToggle">
+              {{ workingAction ? 'Actualizando...' : statusState.item?.toggleLabel || 'Confirmar cambio' }}
+            </button>
+          </div>
+        </section>
+      </div>
     </Teleport>
 
     <div v-if="loading" class="empty-state">
@@ -1547,7 +1702,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           @edit="openEditForm"
           @create="openCreateForm(section.maintenanceType)"
           @remove="requestRemove"
-          @toggle="toggleItem"
+          @toggle="requestToggle"
         />
       </section>
     </template>

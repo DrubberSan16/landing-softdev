@@ -1098,6 +1098,34 @@ body.modal-open {
   font-size: 0.78rem;
 }
 
+.admin-file-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.45);
+}
+
+.admin-file-preview img {
+  width: 96px;
+  height: 68px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+}
+
+.admin-file-preview span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .maintenance-form select[multiple] {
   min-height: 138px;
 }

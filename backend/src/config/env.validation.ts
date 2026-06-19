@@ -42,4 +42,5 @@ export const envValidationSchema = Joi.object({
   AUTH_SESSION_TTL_HOURS: Joi.number().integer().min(1).max(168).default(12),
   AUTH_MAX_FAILED_ATTEMPTS: Joi.number().integer().min(3).max(10).default(5),
   AUTH_LOCK_MINUTES: Joi.number().integer().min(1).max(1440).default(15),
+  UPLOAD_DIR: Joi.string().default('uploads/projects'),
 });

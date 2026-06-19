@@ -1,5 +1,6 @@
 **/dist/
 backend/coverage/
+backend/uploads/
 **/node_modules/**
 frontend/.vscode/
 **/.env

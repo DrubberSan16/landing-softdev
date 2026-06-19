@@ -31,12 +31,14 @@ async function parseResponse(response) {
 }
 
 async function request(path, options = {}, query) {
+  const { headers: optionHeaders = {}, ...requestOptions } = options
+  const isFormData = options.body instanceof FormData
   const response = await fetch(buildUrl(path, query), {
+    ...requestOptions,
     headers: {
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
+      ...(!isFormData ? { 'Content-Type': 'application/json' } : {}),
+      ...optionHeaders,
     },
-    ...options,
   })
 
   return parseResponse(response)
@@ -125,6 +127,18 @@ export const adminApi = {
         Authorization: `Bearer ${getAdminSessionToken()}`,
       },
       body: JSON.stringify(payload),
+    })
+  },
+  uploadProjectCover(file) {
+    const body = new FormData()
+    body.append('image', file)
+
+    return request('/admin/projects/uploads/cover', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+      body,
     })
   },
   updateProject(publicId, payload) {
