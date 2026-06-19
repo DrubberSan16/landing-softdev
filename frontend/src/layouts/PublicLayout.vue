@@ -78,5 +78,16 @@ const navigation = [
         <RouterLink to="/admin/login">Login admin</RouterLink>
       </div>
     </footer>
+
+    <a
+      class="whatsapp-float"
+      href="https://wa.me/593991749473?text=Hola%20Software%20Easy%20Dev%2C%20quiero%20digitalizar%20un%20proceso%20de%20mi%20empresa."
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Contactar por WhatsApp"
+    >
+      <span>WA</span>
+      <strong>WhatsApp</strong>
+    </a>
   </div>
 </template>

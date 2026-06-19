@@ -12,16 +12,16 @@ const admin = ref(null)
 const errorMessage = ref('')
 
 const navigation = [
-  { label: 'Dashboard', to: '/admin/dashboard' },
-  { label: 'Proyectos', to: '/admin/proyectos' },
-  { label: 'Categorias', to: '/admin/categorias' },
-  { label: 'Tecnologias', to: '/admin/tecnologias' },
-  { label: 'Contactos', to: '/admin/contactos' },
-  { label: 'Metricas', to: '/admin/metricas' },
-  { label: 'Usuarios', to: '/admin/usuarios' },
-  { label: 'Roles', to: '/admin/roles' },
-  { label: 'Notificaciones', to: '/admin/notificaciones' },
-  { label: 'Auditoria', to: '/admin/auditoria' },
+  { label: 'Resumen', description: 'Actividad general', to: '/admin/dashboard' },
+  { label: 'Proyectos', description: 'Portafolio y demos', to: '/admin/proyectos' },
+  { label: 'Categorías', description: 'Organiza el portafolio', to: '/admin/categorias' },
+  { label: 'Tecnologías', description: 'Stack de los proyectos', to: '/admin/tecnologias' },
+  { label: 'Solicitudes', description: 'Formularios de Contáctenos', to: '/admin/contactos' },
+  { label: 'Rendimiento', description: 'Visitas y conversiones', to: '/admin/metricas' },
+  { label: 'Usuarios', description: 'Acceso administrativo', to: '/admin/usuarios' },
+  { label: 'Roles y permisos', description: 'Capacidades de acceso', to: '/admin/roles' },
+  { label: 'Notificaciones', description: 'Envíos automáticos', to: '/admin/notificaciones' },
+  { label: 'Auditoría', description: 'Historial de cambios', to: '/admin/auditoria' },
 ]
 
 const activePath = computed(() => route.path)
@@ -75,7 +75,8 @@ onMounted(loadProfile)
           :class="{ 'is-active': activePath.startsWith(item.to) }"
           :to="item.to"
         >
-          {{ item.label }}
+          <strong>{{ item.label }}</strong>
+          <small>{{ item.description }}</small>
         </RouterLink>
       </div>
 

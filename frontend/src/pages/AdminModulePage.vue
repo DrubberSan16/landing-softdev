@@ -80,6 +80,59 @@ function formatDate(value) {
   })
 }
 
+const readableStatuses = {
+  active: 'Activo',
+  inactive: 'Inactivo',
+  blocked: 'Bloqueado',
+  draft: 'Borrador',
+  published: 'Publicado',
+  archived: 'Archivado',
+  public: 'Público',
+  private: 'Privado',
+  hidden: 'Oculto',
+  new: 'Nuevo',
+  in_progress: 'En seguimiento',
+  contacted: 'Contactado',
+  won: 'Ganado',
+  lost: 'Perdido',
+  closed: 'Cerrado',
+  pending: 'Pendiente',
+  processing: 'Procesando',
+  sent: 'Enviada',
+  failed: 'Fallida',
+  cancelled: 'Cancelada',
+}
+
+function formatStatus(value, fallback = 'Sin estado') {
+  return readableStatuses[value] || value || fallback
+}
+
+function formatNumber(value) {
+  return Number(value || 0).toLocaleString('es-EC')
+}
+
+function detail(label, value, options = {}) {
+  return {
+    label,
+    value: value === null || value === undefined || value === '' ? 'No registrado' : value,
+    ...options,
+  }
+}
+
+function yesNo(value) {
+  return value ? 'Sí' : 'No'
+}
+
+function preferredContactLabel(value) {
+  const labels = {
+    email: 'Correo electrónico',
+    phone: 'Llamada telefónica',
+    whatsapp: 'WhatsApp',
+  }
+
+  return labels[value] || value || 'No indicado'
+}
+
 function buildStats(definitions) {
   return definitions.map((item) => ({
     label: item.label,
@@ -215,11 +268,11 @@ const maintenanceConfigs = {
   contacts: {
     editTitle: (item) => `Actualizar ${item.fullName}`,
     fields: () => [
-      { name: 'status', label: 'Estado', type: 'select', options: () => statusOptions.contact, required: true },
-      { name: 'assignedToPublicId', label: 'Responsable', type: 'select', options: userOptions, emptyLabel: 'Sin responsable', nullable: true },
-      { name: 'firstResponseAt', label: 'Primera respuesta', type: 'datetime-local', nullable: true },
-      { name: 'closedAt', label: 'Cierre', type: 'datetime-local', nullable: true },
-      { name: 'adminNotes', label: 'Notas internas', type: 'textarea', nullable: true, full: true },
+      { name: 'status', label: 'Estado del seguimiento', type: 'select', options: () => statusOptions.contact, required: true, help: 'Indica en qué etapa comercial se encuentra la solicitud.' },
+      { name: 'assignedToPublicId', label: 'Responsable', type: 'select', options: userOptions, emptyLabel: 'Sin responsable', nullable: true, help: 'Persona del equipo encargada de responder y dar seguimiento.' },
+      { name: 'firstResponseAt', label: 'Fecha de primera respuesta', type: 'datetime-local', nullable: true },
+      { name: 'closedAt', label: 'Fecha de cierre', type: 'datetime-local', nullable: true },
+      { name: 'adminNotes', label: 'Notas internas', type: 'textarea', nullable: true, full: true, help: 'Solo son visibles para el equipo administrativo.' },
     ],
     update: (item, payload) => adminApi.updateContact(item.publicId, payload),
   },
@@ -498,21 +551,31 @@ async function loadProjectsModule() {
   return {
     eyebrow: 'Gestion editorial',
     title: 'Proyectos demo',
-    description: 'Catalogo interno para publicar, ordenar y analizar demos desde el panel.',
+    description: 'Administra los proyectos que aparecen en el portafolio público. Revisa su visibilidad, contenido y rendimiento antes de publicarlos.',
     stats: buildStats([
       { label: 'Total listado', value: payload.meta?.total || items.length, caption: 'proyectos registrados' },
-      { label: 'Publicados', value: items.filter((item) => item.status === 'published').length, caption: 'visibles o listos para publicar' },
-      { label: 'Destacados', value: items.filter((item) => item.isFeatured).length, caption: 'priorizados en la landing' },
+      { label: 'Publicados visibles', value: items.filter((item) => item.status === 'published').length, caption: 'entre los proyectos recientes' },
+      { label: 'Destacados visibles', value: items.filter((item) => item.isFeatured).length, caption: 'entre los proyectos recientes' },
     ]),
     sections: [
       {
+        eyebrow: 'Portafolio',
         title: 'Proyectos recientes',
-        subtitle: 'Vista rapida del portafolio administrado.',
+        subtitle: 'Cada ficha resume cómo se publica el proyecto y el interés que ha generado.',
         editable: true,
         items: items.map((item) => withEditMeta({
           ...item,
-          subtitle: `${item.categoryName || 'Sin categoria'} | ${item.visibility || 'public'} | ${item.versionLabel || 'sin version'}`,
-          badge: item.status,
+          subtitle: item.shortDescription,
+          badge: formatStatus(item.status),
+          details: [
+            detail('Categoría', item.categoryName),
+            detail('Visibilidad', formatStatus(item.visibility)),
+            detail('Tecnologías', item.technologies?.map((technology) => technology.name).join(', ')),
+            detail('Versión', item.versionLabel),
+            detail('Vistas', formatNumber(item.totalProjectViews)),
+            detail('Clics al demo', formatNumber(item.totalDemoClicks)),
+          ],
+          note: item.isFeatured ? 'Este proyecto está destacado en la landing.' : '',
         })),
         emptyMessage: 'Aun no existen proyectos cargados.',
       },
@@ -535,14 +598,16 @@ async function loadCategoriesModule() {
     ]),
     sections: [
       {
+        eyebrow: 'Organización del portafolio',
         title: 'Listado actual',
-        subtitle: 'Categorias ordenadas segun la configuracion del panel.',
+        subtitle: 'Las categorías ayudan a los visitantes a entender y explorar el tipo de solución ofrecida.',
         editable: true,
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
-          subtitle: item.description || `slug: ${item.slug}`,
-          badge: item.status ? 'activa' : 'inactiva',
+          subtitle: item.description || 'Esta categoría todavía no tiene una descripción.',
+          badge: item.status ? 'Activa' : 'Inactiva',
+          details: [detail('Identificador web', item.slug), detail('Orden de aparición', item.sortOrder ?? 0)],
         })),
         emptyMessage: 'No hay categorias creadas.',
       },
@@ -565,14 +630,20 @@ async function loadTechnologiesModule() {
     ]),
     sections: [
       {
+        eyebrow: 'Stack tecnológico',
         title: 'Stack administrado',
-        subtitle: 'Tecnologias disponibles para asociar a demos.',
+        subtitle: 'Tecnologías que se pueden asociar a los proyectos del portafolio.',
         editable: true,
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.name,
-          subtitle: item.description || item.slug,
-          badge: item.colorHex || (item.status ? 'activa' : 'inactiva'),
+          subtitle: item.description || 'Esta tecnología todavía no tiene una descripción.',
+          badge: item.status ? 'Activa' : 'Inactiva',
+          details: [
+            detail('Identificador web', item.slug),
+            detail('Color', item.colorHex),
+            detail('Sitio oficial', item.officialUrl, { href: item.officialUrl, external: true }),
+          ],
         })),
         emptyMessage: 'No hay tecnologias creadas.',
       },
@@ -590,23 +661,42 @@ async function loadContactsModule() {
 
   return {
     eyebrow: 'Embudo comercial',
-    title: 'Contactos y leads',
-    description: 'Solicitudes recibidas desde la landing para seguimiento interno y conversion.',
+    title: 'Solicitudes de contacto',
+    description: 'Aquí llegan los formularios enviados desde “Contáctenos”. Revisa los datos de la persona, su necesidad y el canal preferido antes de asignar el seguimiento.',
     stats: buildStats([
-      { label: 'Total leads', value: payload.meta?.total || items.length, caption: 'solicitudes registradas' },
-      { label: 'Nuevos', value: items.filter((item) => item.status === 'new').length, caption: 'pendientes de atencion' },
-      { label: 'Asignados', value: items.filter((item) => item.assignedToPublicId).length, caption: 'ya tienen responsable interno' },
+      { label: 'Total solicitudes', value: payload.meta?.total || items.length, caption: 'formularios recibidos' },
+      { label: 'Nuevos visibles', value: items.filter((item) => item.status === 'new').length, caption: 'entre las solicitudes recientes' },
+      { label: 'Asignados visibles', value: items.filter((item) => item.assignedToPublicId).length, caption: 'entre las solicitudes recientes' },
     ]),
     sections: [
       {
+        eyebrow: 'Bandeja comercial',
         title: 'Solicitudes recientes',
-        subtitle: 'Entrada comercial capturada por el formulario publico.',
+        subtitle: 'Ordenadas desde la más reciente. Usa “Gestionar solicitud” para asignar responsable, estado y notas internas.',
         editable: true,
+        actionLabel: 'Gestionar solicitud',
         items: items.map((item) => withEditMeta({
           ...item,
           title: item.fullName,
-          subtitle: `${item.projectTitle || 'Lead general'} | ${item.email} | ${formatDate(item.createdAt)}`,
-          badge: item.status,
+          subtitle: item.subject || 'Solicitud general de información',
+          badge: formatStatus(item.status),
+          details: [
+            detail('Empresa', item.companyName),
+            detail('Correo', item.email, { href: item.email ? `mailto:${item.email}` : '' }),
+            detail('Teléfono', item.phone, { href: item.phone ? `tel:${item.phone}` : '' }),
+            detail('Prefiere contacto por', preferredContactLabel(item.preferredContactMethod)),
+            detail('Proyecto de interés', item.projectTitle || 'Consulta general'),
+            detail('Presupuesto', item.budgetRange),
+            detail('Recibida', formatDate(item.createdAt)),
+            detail('Responsable', item.assignedToFullName || 'Sin asignar'),
+            detail('Primera respuesta', item.firstResponseAt ? formatDate(item.firstResponseAt) : 'Pendiente'),
+            detail('Fecha de cierre', item.closedAt ? formatDate(item.closedAt) : 'Solicitud abierta'),
+            detail('Origen', item.sourcePath || item.sourcePageUrl || 'Formulario de Contáctenos'),
+            detail('Aceptó recibir novedades', yesNo(item.wantsNotifications)),
+          ],
+          bodyLabel: 'Mensaje de la persona',
+          body: item.message || 'La persona no incluyó un mensaje.',
+          note: item.adminNotes ? `Nota interna: ${item.adminNotes}` : 'Sin notas internas todavía.',
         })),
         emptyMessage: 'Todavia no se reciben solicitudes.',
       },
@@ -628,22 +718,30 @@ async function loadUsersModule() {
     description: 'Equipo interno con acceso al panel, roles asignados y politicas de sesion.',
     stats: buildStats([
       { label: 'Usuarios', value: payload.meta?.total || items.length, caption: 'cuentas administrativas' },
-      { label: 'Activos', value: items.filter((item) => item.status === 'active').length, caption: 'habilitados para operar' },
+      { label: 'Activos visibles', value: items.filter((item) => item.status === 'active').length, caption: 'entre los usuarios recientes' },
       { label: 'Roles', value: roles.length, caption: 'perfiles disponibles en el sistema' },
     ]),
     sections: [
       {
+        eyebrow: 'Acceso al panel',
         title: 'Usuarios recientes',
-        subtitle: 'Vista rapida de acceso interno y asignacion de roles.',
+        subtitle: 'Personas que pueden iniciar sesión en este panel y permisos asociados a su cuenta.',
         editable: true,
         items: items.map((item) => withEditMeta({
           ...item,
-          subtitle: `${item.email} | ${item.roles?.map((role) => role.name).join(', ') || 'sin roles'} | ultimo acceso ${item.lastLoginAt ? formatDate(item.lastLoginAt) : 'sin registro'}`,
-          badge: item.status,
+          subtitle: item.email,
+          badge: formatStatus(item.status),
+          details: [
+            detail('Teléfono', item.phone),
+            detail('Roles', item.roles?.map((role) => role.name).join(', ')),
+            detail('Último acceso', item.lastLoginAt ? formatDate(item.lastLoginAt) : 'Nunca ha ingresado'),
+            detail('Cambio de contraseña pendiente', yesNo(item.mustChangePassword)),
+          ],
         })),
         emptyMessage: 'No hay usuarios administrativos registrados.',
       },
       {
+        eyebrow: 'Perfiles de acceso',
         title: 'Roles disponibles',
         subtitle: 'Perfiles que pueden asignarse a los usuarios.',
         items: roles.map((item) => ({
@@ -651,6 +749,7 @@ async function loadUsersModule() {
           title: item.name,
           subtitle: item.description || item.code,
           badge: `${item.permissions?.length || 0} permisos`,
+          details: [detail('Código interno', item.code)],
         })),
         emptyMessage: 'No hay roles configurados.',
       },
@@ -672,6 +771,7 @@ async function loadRolesModule() {
     ]),
     sections: [
       {
+        eyebrow: 'Perfiles de acceso',
         title: 'Roles registrados',
         subtitle: 'Cada rol agrega una combinacion de permisos operativos.',
         items: roles.map((item) => ({
@@ -679,17 +779,24 @@ async function loadRolesModule() {
           title: item.name,
           subtitle: item.description || item.code,
           badge: `${item.permissions?.length || 0} permisos`,
+          details: [
+            detail('Código interno', item.code),
+            detail('Rol protegido del sistema', yesNo(item.isSystem)),
+            detail('Permisos incluidos', item.permissions?.map((permission) => permission.code).join(', ')),
+          ],
         })),
         emptyMessage: 'No hay roles disponibles.',
       },
       {
+        eyebrow: 'Acciones autorizadas',
         title: 'Catalogo de permisos',
         subtitle: 'Permisos utilizables para construir reglas de acceso.',
         items: permissions.map((item) => ({
           ...item,
           title: item.code,
-          subtitle: `${item.moduleName} | ${item.actionName}`,
-          badge: item.description || 'permiso',
+          subtitle: item.description || 'Permiso operativo del panel.',
+          badge: item.actionName || 'Acción',
+          details: [detail('Módulo', item.moduleName), detail('Código interno', item.code)],
         })),
         emptyMessage: 'No hay permisos configurados.',
       },
@@ -707,7 +814,7 @@ async function loadMetricsModule() {
   return {
     eyebrow: 'Analitica',
     title: 'Metricas de negocio',
-    description: 'Lectura consolidada de alcance, interes por demos y conversion por proyecto.',
+    description: 'Entiende qué proyectos atraen visitas, clics y solicitudes. La conversión indica qué porcentaje de las vistas termina en un contacto.',
     stats: buildStats([
       { label: 'Visitantes unicos', value: siteMetrics.totalUniqueVisitorsSite || 0, caption: 'alcance total del sitio' },
       { label: 'Proyectos publicados', value: siteMetrics.publishedProjects || 0, caption: 'catalogo visible' },
@@ -715,24 +822,33 @@ async function loadMetricsModule() {
     ]),
     sections: [
       {
+        eyebrow: 'Rendimiento comercial',
         title: 'Metricas por proyecto',
-        subtitle: 'Conversion y desempeno de cada demo.',
+        subtitle: 'Compara el recorrido desde la visita al proyecto hasta la solicitud de contacto.',
         items: projectMetrics.map((item) => ({
           ...item,
           title: item.title,
-          subtitle: `${item.totalProjectViews || 0} vistas | ${item.totalUniqueVisitors || 0} unicos | ${item.totalContactRequests || 0} leads`,
-          badge: `${item.conversionRate || 0}% conversion`,
+          subtitle: `Identificador web: ${item.slug}`,
+          badge: `${item.conversionRate || 0}% conversión`,
+          details: [
+            detail('Vistas del proyecto', formatNumber(item.totalProjectViews)),
+            detail('Visitantes únicos', formatNumber(item.totalUniqueVisitors)),
+            detail('Clics al demo', formatNumber(item.totalDemoClicks)),
+            detail('Solicitudes recibidas', formatNumber(item.totalContactRequests)),
+          ],
         })),
         emptyMessage: 'No hay metricas por proyecto aun.',
       },
       {
+        eyebrow: 'Interés en demos',
         title: 'Top de clicks al demo',
         subtitle: 'Demos con mayor intencion de exploracion funcional.',
         items: topDemoClicks.map((item) => ({
           ...item,
           title: item.title,
-          subtitle: item.slug,
-          badge: `${item.totalClicks || 0} clicks`,
+          subtitle: `Identificador web: ${item.slug}`,
+          badge: `${formatNumber(item.totalClicks)} clics`,
+          details: [detail('Interpretación', 'Veces que los visitantes intentaron abrir el demo')],
         })),
         emptyMessage: 'No hay clicks registrados.',
       },
@@ -752,7 +868,7 @@ async function loadNotificationsModule() {
   return {
     eyebrow: 'Alertas y seguimiento',
     title: 'Notificaciones',
-    description: 'Cola, canales, plantillas y preferencias para reaccionar ante eventos del negocio.',
+    description: 'Supervisa los mensajes automáticos del sistema: qué se intentó enviar, por qué canal, a quién y si ocurrió algún error.',
     stats: buildStats([
       { label: 'En cola', value: queuePayload.meta?.total || queue.length, caption: 'items recientes de notificacion' },
       { label: 'Canales', value: channels.length, caption: 'mecanismos configurados' },
@@ -760,18 +876,31 @@ async function loadNotificationsModule() {
     ]),
     sections: [
       {
+        eyebrow: 'Envíos automáticos',
         title: 'Cola reciente',
-        subtitle: 'Eventos que esperan envio o ya fueron procesados.',
+        subtitle: 'Los eventos pendientes aún no se envían; los fallidos requieren revisar el detalle del error.',
         editable: true,
+        actionLabel: 'Revisar envío',
         items: queue.map((item) => withEditMeta({
           ...item,
-          title: item.eventCode,
-          subtitle: `${item.channelName} | ${item.recipientTo || 'sin destinatario'} | ${formatDate(item.createdAt)}`,
-          badge: item.status,
+          title: item.subjectOverride || item.templateName || item.eventCode,
+          subtitle: `Evento: ${item.eventCode}`,
+          badge: formatStatus(item.status),
+          details: [
+            detail('Canal', item.channelName),
+            detail('Destinatario', item.recipientName || item.recipientTo),
+            detail('Dirección', item.recipientTo),
+            detail('Creada', formatDate(item.createdAt)),
+            detail('Intentos', `${item.attempts || 0} de ${item.maxAttempts || 0}`),
+            detail('Proyecto relacionado', item.projectTitle),
+          ],
+          bodyLabel: 'Error del envío',
+          body: item.errorMessage,
         }, 'queue')),
         emptyMessage: 'No hay items en cola.',
       },
       {
+        eyebrow: 'Configuración de entrega',
         title: 'Canales y plantillas',
         subtitle: 'Base de entrega automatica definida en el sistema.',
         items: [
@@ -779,26 +908,31 @@ async function loadNotificationsModule() {
             ...item,
             title: item.name,
             subtitle: item.description || item.code,
-            badge: item.isActive ? 'activo' : 'inactivo',
+            badge: item.isActive ? 'Canal activo' : 'Canal inactivo',
+            details: [detail('Código interno', item.code)],
           })),
           ...templates.slice(0, 6).map((item) => ({
             ...item,
             title: item.name,
             subtitle: `${item.eventCode} | ${item.channelName}`,
-            badge: item.isActive ? 'activa' : 'inactiva',
+            badge: item.isActive ? 'Plantilla activa' : 'Plantilla inactiva',
+            details: [detail('Asunto', item.subjectTemplate)],
           })),
         ],
         emptyMessage: 'No hay canales ni plantillas configuradas.',
       },
       {
+        eyebrow: 'Preferencias personales',
         title: 'Preferencias administrativas',
         subtitle: 'Configuracion por usuario y canal para eventos del sistema.',
         editable: true,
+        actionLabel: 'Cambiar preferencia',
         items: preferences.slice(0, 12).map((item) => withEditMeta({
           ...item,
           title: item.adminUserFullName,
-          subtitle: `${item.eventCode} | ${item.channelName}`,
-          badge: item.isEnabled ? 'habilitada' : 'deshabilitada',
+          subtitle: `Evento: ${item.eventCode}`,
+          badge: item.isEnabled ? 'Habilitada' : 'Deshabilitada',
+          details: [detail('Canal', item.channelName)],
         }, 'preference')),
         emptyMessage: 'No hay preferencias definidas.',
       },
@@ -813,21 +947,29 @@ async function loadAuditModule() {
   return {
     eyebrow: 'Trazabilidad',
     title: 'Auditoria administrativa',
-    description: 'Registro historico de acciones ejecutadas dentro del panel privado.',
+    description: 'Consulta quién hizo un cambio, sobre qué parte del sistema y cuándo ocurrió. Este historial es de solo lectura.',
     stats: buildStats([
       { label: 'Eventos', value: payload.meta?.total || items.length, caption: 'acciones auditadas' },
-      { label: 'Usuarios involucrados', value: new Set(items.map((item) => item.adminUserPublicId).filter(Boolean)).size, caption: 'administradores con actividad reciente' },
-      { label: 'Entidades', value: new Set(items.map((item) => item.entityName).filter(Boolean)).size, caption: 'tablas o modulos impactados' },
+      { label: 'Usuarios recientes', value: new Set(items.map((item) => item.adminUserPublicId).filter(Boolean)).size, caption: 'en los eventos mostrados' },
+      { label: 'Módulos recientes', value: new Set(items.map((item) => item.entityName).filter(Boolean)).size, caption: 'en los eventos mostrados' },
     ]),
     sections: [
       {
+        eyebrow: 'Historial de cambios',
         title: 'Registro reciente',
-        subtitle: 'Acciones visibles para control interno y seguimiento operativo.',
+        subtitle: 'Las acciones más recientes aparecen primero y permiten rastrear cambios administrativos.',
         items: items.map((item) => ({
           ...item,
-          title: item.actionCode,
-          subtitle: `${item.adminUserFullName || 'Sistema'} | ${item.entityName} | ${formatDate(item.createdAt)}`,
-          badge: item.entityId ?? 'evento',
+          title: item.description || item.actionCode,
+          subtitle: `Acción: ${item.actionCode}`,
+          badge: item.adminUserFullName || 'Sistema',
+          details: [
+            detail('Fecha', formatDate(item.createdAt)),
+            detail('Módulo o entidad', item.entityName),
+            detail('Registro afectado', item.entityId),
+            detail('Correo del usuario', item.adminUserEmail),
+            detail('Dirección IP', item.ipAddress),
+          ],
         })),
         emptyMessage: 'No hay logs de auditoria.',
       },
@@ -902,6 +1044,21 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
         <button class="button button--secondary" type="button" @click="closeForm">Cancelar</button>
       </div>
 
+      <div v-if="formState.mode === 'edit' && formState.item" class="maintenance-context">
+        <strong>{{ formState.item.title || formState.item.fullName || formState.item.name }}</strong>
+        <p v-if="formState.item.subtitle">{{ formState.item.subtitle }}</p>
+        <dl v-if="formState.item.details?.length" class="admin-list__details">
+          <div v-for="detailItem in formState.item.details" :key="`${detailItem.label}-${detailItem.value}`">
+            <dt>{{ detailItem.label }}</dt>
+            <dd>{{ detailItem.value }}</dd>
+          </div>
+        </dl>
+        <div v-if="formState.item.body" class="admin-list__message">
+          <span>{{ formState.item.bodyLabel || 'Detalle' }}</span>
+          <p>{{ formState.item.body }}</p>
+        </div>
+      </div>
+
       <form class="lead-form maintenance-form" @submit.prevent="submitMaintenance">
         <template v-for="field in activeFields" :key="field.name">
           <label
@@ -944,6 +1101,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
               :required="isFieldRequired(field)"
               @input="updateDerivedFields(field.name)"
             />
+            <small v-if="field.help" class="field-help">{{ field.help }}</small>
           </label>
         </template>
 
@@ -985,10 +1143,11 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           :key="section.title"
           :title="section.title"
           :subtitle="section.subtitle"
+          :eyebrow="section.eyebrow"
           :items="section.items"
           :empty-message="section.emptyMessage"
           :editable="!!section.editable"
-          action-label="Editar"
+          :action-label="section.actionLabel || 'Editar'"
           @edit="openEditForm"
         />
       </section>

@@ -609,13 +609,14 @@ h3 {
 
 .bullet-list {
   display: grid;
-  gap: 12px;
+  gap: 16px;
 }
 
 .bullet-list li,
 .meta-list li {
   position: relative;
-  padding-left: 18px;
+  padding-left: 30px;
+  padding-block: 2px;
   color: var(--muted);
   line-height: 1.7;
 }
@@ -624,12 +625,13 @@ h3 {
 .meta-list li::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0.72em;
-  width: 8px;
-  height: 8px;
+  left: 5px;
+  top: 0.78em;
+  width: 9px;
+  height: 9px;
   border-radius: 999px;
   background: linear-gradient(135deg, var(--secondary), var(--primary));
+  box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.08);
 }
 
 .meta-list {
@@ -979,6 +981,19 @@ textarea {
   gap: 12px;
 }
 
+.admin-sidebar__link {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  text-align: left;
+}
+
+.admin-sidebar__link small {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
 .admin-main {
   padding: 24px;
 }
@@ -1002,6 +1017,27 @@ textarea {
 
 .admin-maintenance-card {
   background: rgba(255, 255, 255, 0.78);
+}
+
+.maintenance-context {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 18px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.5);
+}
+
+.maintenance-context > p,
+.field-help {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.field-help {
+  display: block;
+  font-size: 0.78rem;
 }
 
 .maintenance-form select[multiple] {
@@ -1030,19 +1066,101 @@ textarea {
   align-items: start;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 18px;
+  border: 1px solid rgba(19, 37, 33, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(248, 251, 250, 0.82);
 }
 
 .admin-list__item:first-child {
-  border-top: 0;
-  padding-top: 0;
+  padding-top: 18px;
 }
 
 .admin-list__content,
 .admin-list__meta {
   display: grid;
   gap: 6px;
+}
+
+.admin-list__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-list__heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.admin-list__heading > strong {
+  color: var(--ink);
+  font-size: 1.05rem;
+}
+
+.admin-list__details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(130px, 1fr));
+  gap: 10px 16px;
+  margin: 10px 0 0;
+}
+
+.admin-list__details > div {
+  min-width: 0;
+}
+
+.admin-list__details dt,
+.admin-list__message > span {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.admin-list__details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.admin-list__details a {
+  color: var(--primary-strong);
+  font-weight: 700;
+}
+
+.admin-list__message {
+  display: grid;
+  gap: 5px;
+  margin-top: 10px;
+  padding: 14px;
+  border-left: 3px solid var(--primary);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: #fff;
+}
+
+.admin-list__message p {
+  margin: 0;
+  color: var(--ink);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.admin-list__note {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-style: italic;
+}
+
+.admin-list__value {
+  color: var(--primary-strong);
+  font-size: 1.35rem;
 }
 
 .admin-list__meta {
@@ -1095,10 +1213,11 @@ textarea {
 }
 
 .workflow-board__brand img {
-  width: min(210px, 52%);
-  padding: 10px;
-  border-radius: 12px;
-  background: #fff;
+  width: min(236px, 58%);
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.24));
 }
 
 .workflow-board__brand span,
@@ -1203,13 +1322,97 @@ textarea {
 .contact-copy {
   display: grid;
   align-content: center;
-  gap: 18px;
+  gap: 22px;
   padding: clamp(20px, 4vw, 34px);
 }
 
 .contact-copy p {
   color: var(--muted);
   line-height: 1.75;
+}
+
+.contact-highlight-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 6px;
+}
+
+.contact-highlight-card {
+  display: grid;
+  gap: 10px;
+  min-height: 170px;
+  padding: 20px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-md);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(231, 243, 239, 0.68)),
+    #fff;
+  box-shadow: 0 16px 36px rgba(16, 35, 63, 0.08);
+}
+
+.contact-highlight-card strong {
+  width: fit-content;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.48rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--primary-strong);
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 1rem;
+}
+
+.contact-highlight-card h3 {
+  line-height: 1.24;
+}
+
+.contact-highlight-card p {
+  font-size: 0.94rem;
+  line-height: 1.68;
+}
+
+.whatsapp-float {
+  position: fixed;
+  right: clamp(16px, 2.6vw, 32px);
+  bottom: clamp(16px, 2.6vw, 32px);
+  z-index: 45;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 54px;
+  padding: 0.72rem 1rem 0.72rem 0.72rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #20bf63, #0b4f4a);
+  color: #fff;
+  box-shadow: 0 18px 42px rgba(15, 118, 110, 0.28);
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.whatsapp-float:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 22px 52px rgba(15, 118, 110, 0.34);
+}
+
+.whatsapp-float span {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.whatsapp-float strong {
+  color: #fff;
+  font-size: 0.94rem;
 }
 
 .not-found-page {
@@ -1297,9 +1500,14 @@ textarea {
   .hero__stats--three,
   .hero__stats--four,
   .capability-grid,
+  .contact-highlight-grid,
   .filter-bar,
   .lead-form {
     grid-template-columns: 1fr;
+  }
+
+  .admin-list__details {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .project-grid--compact,
@@ -1357,7 +1565,7 @@ textarea {
   }
 
   .workflow-board__brand img {
-    width: min(100%, 190px);
+    width: min(100%, 220px);
   }
 
   .workflow-board__meter,
@@ -1370,6 +1578,17 @@ textarea {
     align-items: stretch;
   }
 
+  .whatsapp-float {
+    right: 14px;
+    bottom: 14px;
+    min-height: 50px;
+    padding: 0.62rem;
+  }
+
+  .whatsapp-float strong {
+    display: none;
+  }
+
   .meta-list li,
   .admin-list__item {
     flex-direction: column;
@@ -1379,5 +1598,9 @@ textarea {
   .admin-list__meta {
     justify-items: start;
     text-align: left;
+  }
+
+  .admin-list__details {
+    grid-template-columns: 1fr;
   }
 }

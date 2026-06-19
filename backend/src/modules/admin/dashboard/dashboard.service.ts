@@ -39,8 +39,11 @@ export class DashboardService {
           SELECT
             cr.public_id AS "publicId",
             cr.full_name AS "fullName",
+            cr.company_name AS "companyName",
             cr.email::varchar AS email,
+            cr.phone,
             cr.subject,
+            cr.message,
             cr.status,
             cr.created_at AS "createdAt",
             p.public_id AS "projectPublicId",

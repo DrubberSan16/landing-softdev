@@ -85,10 +85,8 @@ async function handleSubmit() {
         <button class="button button--primary" type="submit" :disabled="loading">
           {{ loading ? 'Validando acceso...' : 'Entrar al panel' }}
         </button>
-
-        <p class="auth-hint">
-          Usuario sugerido: <strong>{{ appConfig.defaultAdminEmail }}</strong>
-        </p>
+        
+        
         <p v-if="errorMessage" class="form-message form-message--error">{{ errorMessage }}</p>
       </form>
     </section>

@@ -8,6 +8,21 @@ const loading = ref(true)
 const summary = ref(null)
 const errorMessage = ref('')
 
+const statusLabels = {
+  new: 'Nuevo',
+  in_progress: 'En seguimiento',
+  contacted: 'Contactado',
+  won: 'Ganado',
+  lost: 'Perdido',
+  closed: 'Cerrado',
+}
+
+function formatDate(value) {
+  return value
+    ? new Date(value).toLocaleString('es-EC', { dateStyle: 'medium', timeStyle: 'short' })
+    : 'No registrada'
+}
+
 const stats = computed(() => {
   const siteMetrics = summary.value?.siteMetrics || {}
   const queue = summary.value?.notificationQueue || {}
@@ -49,9 +64,14 @@ const stats = computed(() => {
 const topProjects = computed(() =>
   (summary.value?.topProjects || []).map((item) => ({
     ...item,
-    subtitle: `${item.slug} | ${item.totalDemoClicks || 0} clicks al demo`,
+    subtitle: `Identificador web: ${item.slug}`,
     value: item.totalProjectViews || 0,
     badge: `${item.totalContactRequests || 0} leads`,
+    details: [
+      { label: 'Vistas', value: item.totalProjectViews || 0 },
+      { label: 'Clics al demo', value: item.totalDemoClicks || 0 },
+      { label: 'Solicitudes', value: item.totalContactRequests || 0 },
+    ],
   })),
 )
 
@@ -59,8 +79,16 @@ const recentLeads = computed(() =>
   (summary.value?.recentLeads || []).map((item) => ({
     ...item,
     title: item.fullName,
-    subtitle: `${item.projectTitle || 'Lead general'} | ${item.email}`,
-    badge: item.status,
+    subtitle: item.subject || 'Solicitud de información',
+    badge: statusLabels[item.status] || item.status,
+    details: [
+      { label: 'Correo', value: item.email, href: item.email ? `mailto:${item.email}` : '' },
+      { label: 'Teléfono', value: item.phone || 'No registrado', href: item.phone ? `tel:${item.phone}` : '' },
+      { label: 'Proyecto', value: item.projectTitle || 'Consulta general' },
+      { label: 'Recibida', value: formatDate(item.createdAt) },
+    ],
+    bodyLabel: 'Mensaje',
+    body: item.message,
   })),
 )
 
@@ -68,9 +96,9 @@ const queueSnapshot = computed(() => {
   const queue = summary.value?.notificationQueue || {}
 
   return [
-    { label: 'Pendientes', value: queue.pending || 0, badge: 'queue' },
-    { label: 'Fallidas', value: queue.failed || 0, badge: 'retry' },
-    { label: 'Enviadas', value: queue.sent || 0, badge: 'sent' },
+    { label: 'Pendientes', value: queue.pending || 0, badge: 'Esperan envío', subtitle: 'Notificaciones que aún no han sido procesadas.' },
+    { label: 'Fallidas', value: queue.failed || 0, badge: 'Requieren revisión', subtitle: 'Envíos que terminaron con un error.' },
+    { label: 'Enviadas', value: queue.sent || 0, badge: 'Completadas', subtitle: 'Notificaciones entregadas correctamente.' },
   ]
 })
 
@@ -122,6 +150,7 @@ onMounted(async () => {
 
       <section class="admin-grid">
         <AdminPanelList
+          eyebrow="Portafolio"
           title="Proyectos con mayor traccion"
           subtitle="Los demos mas consultados ayudan a priorizar narrativa comercial y mejoras."
           :items="topProjects"
@@ -129,8 +158,9 @@ onMounted(async () => {
         />
 
         <AdminPanelList
-          title="Leads recientes"
-          subtitle="Solicitudes entrantes visibles para clasificacion y seguimiento."
+          eyebrow="Solicitudes de Contáctenos"
+          title="Contactos recientes"
+          subtitle="Datos básicos de las personas que enviaron el formulario. El seguimiento completo está en Solicitudes de contacto."
           :items="recentLeads"
           empty-message="Todavia no se han recibido leads desde la landing."
         />
@@ -138,6 +168,7 @@ onMounted(async () => {
 
       <section class="admin-grid admin-grid--single">
         <AdminPanelList
+          eyebrow="Automatizaciones"
           title="Estado actual de la cola de notificaciones"
           subtitle="Snapshot rapido para detectar alertas pendientes o eventos fallidos."
           :items="queueSnapshot"

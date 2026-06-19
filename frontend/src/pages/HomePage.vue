@@ -74,6 +74,19 @@ const trustSignals = [
   'Paneles privados para controlar usuarios, datos y procesos.',
 ]
 
+const contactHighlights = [
+  {
+    value: '48h',
+    title: 'Diagnostico inicial',
+    body: 'Revisamos tu flujo actual y ubicamos oportunidades claras para ahorrar tiempo.',
+  },
+  {
+    value: '3 pasos',
+    title: 'Ruta de implementacion',
+    body: 'Priorizamos alcance, etapas y entregables para que sepas como avanzar desde el inicio.',
+  },
+]
+
 const stats = computed(() => {
   const dynamicStats = []
 
@@ -292,6 +305,18 @@ onMounted(async () => {
             <li>Propuesta de alcance, etapas y prioridades.</li>
             <li>Seguimiento comercial desde un panel privado.</li>
           </ul>
+
+          <div class="contact-highlight-grid" aria-label="Beneficios del primer contacto">
+            <article
+              v-for="item in contactHighlights"
+              :key="item.title"
+              class="contact-highlight-card"
+            >
+              <strong>{{ item.value }}</strong>
+              <h3>{{ item.title }}</h3>
+              <p>{{ item.body }}</p>
+            </article>
+          </div>
         </article>
 
         <LeadFormCard compact />
