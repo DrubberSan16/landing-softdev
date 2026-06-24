@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Request } from 'express';
 import { DatabaseService } from '../../common/database/database.service';
 import {
@@ -20,6 +20,8 @@ type ProjectIdentity = {
 
 @Injectable()
 export class PublicService {
+  private readonly logger = new Logger(PublicService.name);
+
   constructor(private readonly databaseService: DatabaseService) {}
 
   async getHomeData() {
@@ -369,11 +371,50 @@ export class PublicService {
       );
     }
 
+    return this.recordDemoClick(
+      project,
+      payload.sessionToken,
+      payload.referrerUrl,
+    );
+  }
+
+  async resolveDemoRedirect(
+    slug: string,
+    sessionToken: string,
+    referrerUrl?: string,
+  ) {
+    const project = await this.resolveProjectIdentity(undefined, slug);
+
+    if (!project) {
+      throw new NotFoundException('No se encontro el proyecto solicitado.');
+    }
+
+    try {
+      await this.recordDemoClick(project, sessionToken, referrerUrl);
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Error de seguimiento desconocido';
+
+      this.logger.warn(
+        `No se pudo registrar el click del demo para "${slug}". Se continuara con la redireccion. ${message}`,
+      );
+    }
+
+    return project.demoUrl;
+  }
+
+  private async recordDemoClick(
+    project: ProjectIdentity,
+    sessionToken: string,
+    referrerUrl?: string,
+  ) {
     const result = await this.databaseService.one<{ clickId: string }>(
       `
         SELECT landing_core.fn_track_demo_click($1::uuid, $2::bigint, $3::text)::text AS "clickId"
       `,
-      [payload.sessionToken, project.id, payload.referrerUrl ?? null],
+      [sessionToken, project.id, referrerUrl ?? null],
     );
 
     return {
@@ -385,20 +426,6 @@ export class PublicService {
         title: project.title,
       },
     };
-  }
-
-  async resolveDemoRedirect(
-    slug: string,
-    sessionToken: string,
-    referrerUrl?: string,
-  ) {
-    const tracked = await this.trackDemoClick({
-      sessionToken,
-      projectSlug: slug,
-      referrerUrl,
-    });
-
-    return tracked.targetUrl;
   }
 
   private async resolveProjectIdentity(
