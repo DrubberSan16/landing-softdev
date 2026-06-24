@@ -6,3 +6,5 @@ frontend/.vscode/
 **/.env
 !**/.env.example
 **.sql
+!sql/
+!sql/**.sql
