@@ -1125,14 +1125,81 @@ body.modal-open {
   font-weight: 800;
 }
 
-.ai-documentation-preview__document pre,
-.project-documentation__content {
+.ai-documentation-preview__document pre {
   margin: 0;
   overflow-x: auto;
   color: var(--ink);
   font-family: inherit;
   line-height: 1.75;
   white-space: pre-wrap;
+}
+
+.project-documentation__card {
+  display: grid;
+  gap: 16px;
+}
+
+.project-documentation__title,
+.project-documentation__subtitle,
+.project-documentation__minor-title {
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.project-documentation__title {
+  font-size: clamp(1.55rem, 2vw, 2.1rem);
+}
+
+.project-documentation__subtitle {
+  margin-top: 8px;
+  color: var(--primary-strong);
+  font-size: clamp(1.15rem, 1.4vw, 1.45rem);
+}
+
+.project-documentation__minor-title {
+  color: var(--primary-strong);
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.project-documentation__paragraph,
+.project-documentation__list {
+  color: var(--muted);
+  line-height: 1.8;
+}
+
+.project-documentation__list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 1.2rem;
+}
+
+.demo-scope-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 8px 0;
+}
+
+.demo-scope-grid > div {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.64);
+}
+
+.demo-scope-grid strong {
+  color: var(--primary-strong);
+}
+
+.demo-scope-grid span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .ai-documentation-preview__faq dl {
@@ -1864,6 +1931,7 @@ body.modal-open {
   .hero__stats--four,
   .capability-grid,
   .contact-highlight-grid,
+  .demo-scope-grid,
   .filter-bar,
   .lead-form {
     grid-template-columns: 1fr;

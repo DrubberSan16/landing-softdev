@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import LeadFormCard from '../components/LeadFormCard.vue'
 import ProjectCard from '../components/ProjectCard.vue'
-import StatCard from '../components/StatCard.vue'
 import { usePublicTracking } from '../composables/usePublicTracking'
 import { buildDemoRedirectUrl, publicApi } from '../services/api'
 import { getSessionToken } from '../utils/visitor-session'
@@ -17,35 +16,6 @@ usePublicTracking(() => ({
 const loading = ref(true)
 const project = ref(null)
 const errorMessage = ref('')
-
-const projectStats = computed(() => {
-  if (!project.value) {
-    return []
-  }
-
-  return [
-    {
-      label: 'Visitas',
-      value: project.value.totalProjectViews || 0,
-      caption: 'interacciones visibles sobre la landing',
-    },
-    {
-      label: 'Clicks al demo',
-      value: project.value.totalDemoClicks || 0,
-      caption: 'interes real por la experiencia funcional',
-    },
-    {
-      label: 'Visitantes unicos',
-      value: project.value.totalUniqueVisitors || 0,
-      caption: 'trafico distinto registrado',
-    },
-    {
-      label: 'Leads',
-      value: project.value.totalContactRequests || 0,
-      caption: 'solicitudes asociadas al proyecto',
-    },
-  ]
-})
 
 const projectLeadOptions = computed(() => {
   if (!project.value) {
@@ -80,6 +50,71 @@ const isMainProduct = computed(() => {
 })
 
 const documentationContent = computed(() => project.value?.fullDescription?.trim() || '')
+const documentationBlocks = computed(() => parseDocumentationBlocks(documentationContent.value))
+
+function parseDocumentationBlocks(value) {
+  const blocks = []
+  let paragraph = []
+  let listItems = []
+
+  function flushParagraph() {
+    if (paragraph.length) {
+      blocks.push({
+        type: 'paragraph',
+        text: paragraph.join(' '),
+      })
+      paragraph = []
+    }
+  }
+
+  function flushList() {
+    if (listItems.length) {
+      blocks.push({
+        type: 'list',
+        items: listItems,
+      })
+      listItems = []
+    }
+  }
+
+  value.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim()
+
+    if (!trimmed) {
+      flushParagraph()
+      flushList()
+      return
+    }
+
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/)
+
+    if (heading) {
+      flushParagraph()
+      flushList()
+      blocks.push({
+        type: `heading${heading[1].length}`,
+        text: heading[2],
+      })
+      return
+    }
+
+    const listItem = trimmed.match(/^[-*]\s+(.+)$/)
+
+    if (listItem) {
+      flushParagraph()
+      listItems.push(listItem[1])
+      return
+    }
+
+    flushList()
+    paragraph.push(trimmed)
+  })
+
+  flushParagraph()
+  flushList()
+
+  return blocks
+}
 
 async function loadProject() {
   loading.value = true
@@ -195,18 +230,6 @@ watch(
         </aside>
       </section>
 
-      <section class="section">
-        <div class="hero__stats hero__stats--four">
-          <StatCard
-            v-for="stat in projectStats"
-            :key="stat.label"
-            :label="stat.label"
-            :value="stat.value"
-            :caption="stat.caption"
-          />
-        </div>
-      </section>
-
       <section v-if="documentationContent" class="section project-documentation">
         <div class="section__header">
           <p class="section__eyebrow">Documentación comercial</p>
@@ -218,7 +241,23 @@ watch(
         </div>
 
         <article class="info-card project-documentation__card">
-          <pre class="project-documentation__content">{{ documentationContent }}</pre>
+          <template v-for="(block, index) in documentationBlocks" :key="`${block.type}-${index}`">
+            <h3 v-if="block.type === 'heading1'" class="project-documentation__title">
+              {{ block.text }}
+            </h3>
+            <h4 v-else-if="block.type === 'heading2'" class="project-documentation__subtitle">
+              {{ block.text }}
+            </h4>
+            <h5 v-else-if="block.type === 'heading3'" class="project-documentation__minor-title">
+              {{ block.text }}
+            </h5>
+            <ul v-else-if="block.type === 'list'" class="project-documentation__list">
+              <li v-for="item in block.items" :key="item">{{ item }}</li>
+            </ul>
+            <p v-else class="project-documentation__paragraph">
+              {{ block.text }}
+            </p>
+          </template>
         </article>
       </section>
 
@@ -226,11 +265,32 @@ watch(
         <div class="split-grid">
           <article class="info-card">
             <p class="section__eyebrow">Alcance del demo</p>
-            <h2>Una experiencia preparada para vender la capacidad tecnica de la fabrica.</h2>
+            <h2>Una muestra concreta de como podemos convertir una idea en software usable.</h2>
             <p>
-              Este proyecto se presenta con una narrativa comercial completa: contexto de negocio,
-              stack usado, activos visuales, documentacion y trazabilidad desde la vista hasta el
-              lead.
+              El demo no busca mostrar pantallas por mostrar. Sirve para que veas como tomamos un
+              proceso real, lo ordenamos en pasos simples y lo convertimos en una plataforma que
+              ayuda a vender, atender y tomar mejores decisiones.
+            </p>
+
+            <div class="demo-scope-grid">
+              <div>
+                <strong>Experiencia clara</strong>
+                <span>Flujos pensados para que el usuario entienda que hacer desde el primer minuto.</span>
+              </div>
+              <div>
+                <strong>Negocio visible</strong>
+                <span>Informacion organizada para presentar mejor tu propuesta y reducir conversaciones confusas.</span>
+              </div>
+              <div>
+                <strong>Base escalable</strong>
+                <span>Una estructura que puede crecer con roles, reportes, automatizaciones e integraciones.</span>
+              </div>
+            </div>
+
+            <p>
+              Si tu empresa tiene un proceso que hoy vive entre mensajes, hojas de calculo o
+              explicaciones repetidas, este tipo de demo muestra como podria verse una solucion
+              propia: ordenada, medible y lista para tus clientes.
             </p>
 
             <div v-if="project.technologies?.length" class="pill-cloud">
