@@ -65,10 +65,11 @@ onMounted(loadCatalog)
   <main class="page-stack">
     <section class="page-banner">
       <p class="section__eyebrow">Catalogo de proyectos</p>
-      <h1>Explora demos publicados por categoria, tecnologia e interes comercial.</h1>
+      <h1>Explora los demos publicados y el producto principal de Software Easy Dev.</h1>
       <p class="lead">
-        Cada proyecto se presenta como un activo funcional con contexto, stack y puntos claros
-        de conversion para demos o propuestas similares.
+        Por ahora KintiPorta es la demo central: una plataforma real desarrollada por Software
+        Easy Dev para mostrar cómo una idea puede convertirse en una experiencia funcional,
+        documentada y lista para presentarse a clientes.
       </p>
     </section>
 

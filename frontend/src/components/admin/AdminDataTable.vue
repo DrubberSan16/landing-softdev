@@ -50,11 +50,15 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  customActions: {
+    type: Array,
+    default: () => [],
+  },
 })
 
-const emit = defineEmits(['create', 'edit', 'remove', 'toggle'])
+const emit = defineEmits(['create', 'edit', 'remove', 'toggle', 'custom-action'])
 
-const hasActions = computed(() => props.editable || props.deletable || props.toggleable)
+const hasActions = computed(() => props.editable || props.deletable || props.toggleable || props.customActions.length > 0)
 
 function columnValue(column, item) {
   const value = typeof column.value === 'function' ? column.value(item) : item[column.key]
@@ -82,6 +86,28 @@ function columnHref(column, item) {
 
 function rowKey(item, index) {
   return item.publicId || item.id || item.slug || `${props.title}-${index}`
+}
+
+function isCustomActionVisible(action, item) {
+  return typeof action.visible === 'function' ? action.visible(item) : action.visible !== false
+}
+
+function customActionLabel(action, item) {
+  return typeof action.label === 'function' ? action.label(item) : action.label
+}
+
+function customActionClass(action, item) {
+  const variant = typeof action.variant === 'function' ? action.variant(item) : action.variant
+
+  if (variant === 'primary') {
+    return 'button--primary'
+  }
+
+  if (variant === 'danger') {
+    return 'button--danger'
+  }
+
+  return 'button--secondary'
 }
 </script>
 
@@ -149,6 +175,17 @@ function rowKey(item, index) {
               <small v-if="secondaryValue(column, item)">{{ secondaryValue(column, item) }}</small>
             </td>
             <td v-if="hasActions" class="admin-table__actions">
+              <button
+                v-for="action in customActions.filter((entry) => isCustomActionVisible(entry, item))"
+                :key="action.key || customActionLabel(action, item)"
+                class="button admin-table__button"
+                :class="customActionClass(action, item)"
+                type="button"
+                :disabled="busy || action.disabled?.(item)"
+                @click="emit('custom-action', { action, item })"
+              >
+                {{ customActionLabel(action, item) }}
+              </button>
               <button
                 v-if="editable && item.canEdit !== false"
                 class="button button--secondary admin-table__button"

@@ -76,6 +76,23 @@ export class ProjectsController {
     return this.projectsService.create(payload, admin, request);
   }
 
+  @Post(':publicId/ai-documentation')
+  @RequirePermissions('projects.update')
+  @ApiOperation({
+    summary: 'Generar un borrador de documentacion comercial con OpenAI',
+  })
+  generateDocumentationDraft(
+    @Param('publicId') publicId: string,
+    @CurrentAdminUser() admin: CurrentAdmin,
+    @Req() request: Request,
+  ) {
+    return this.projectsService.generateDocumentationDraft(
+      publicId,
+      admin,
+      request,
+    );
+  }
+
   @Post('uploads/cover')
   @RequirePermissions('projects.create')
   @UseInterceptors(

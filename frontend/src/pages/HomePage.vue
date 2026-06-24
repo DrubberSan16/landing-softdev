@@ -75,6 +75,13 @@ const trustSignals = [
   'Paneles privados para controlar usuarios, datos y procesos.',
 ]
 
+function isMainLandingProject(project) {
+  const slug = (project?.slug || '').toLowerCase()
+  const title = (project?.title || '').toLowerCase()
+
+  return slug === 'k' || slug.includes('kintiporta') || title.includes('kintiporta')
+}
+
 const contactHighlights = [
   {
     value: '48h',
@@ -201,7 +208,13 @@ onMounted(async () => {
       <div class="landing-projects__grid">
         <article v-for="project in landingProjects" :key="project.publicId" class="landing-project-card">
           <p class="section__eyebrow">{{ project.categoryName || 'Proyecto' }}</p>
+          <span v-if="isMainLandingProject(project)" class="project-card__primary-badge">
+            Producto principal
+          </span>
           <h3>{{ project.title }}</h3>
+          <p v-if="isMainLandingProject(project)" class="landing-project-card__highlight">
+            Demo desarrollado por Software Easy Dev para presentar una plataforma real a clientes.
+          </p>
           <p>{{ project.shortDescription }}</p>
           <a :href="project.demoUrl" target="_blank" rel="noopener noreferrer">
             {{ project.demoUrl }}

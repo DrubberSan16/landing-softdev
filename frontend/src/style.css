@@ -759,6 +759,30 @@ h3 {
   font-size: 0.9rem;
 }
 
+.project-card__primary-badge,
+.project-main-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid rgba(15, 118, 110, 0.22);
+  border-radius: 999px;
+  background: rgba(231, 243, 239, 0.92);
+  color: var(--primary-strong) !important;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  padding: 0.32rem 0.68rem;
+  text-transform: uppercase;
+}
+
+.project-card__highlight,
+.landing-project-card__highlight,
+.project-summary-card__intro {
+  color: var(--primary-strong) !important;
+  font-weight: 700;
+  line-height: 1.55;
+}
+
 .filter-bar,
 .lead-form {
   display: grid;
@@ -1063,6 +1087,68 @@ body.modal-open {
   justify-content: flex-end;
   gap: 10px;
   margin-top: 6px;
+}
+
+.ai-documentation-modal {
+  width: min(1080px, 100%);
+}
+
+.ai-documentation-preview {
+  display: grid;
+  gap: 18px;
+}
+
+.ai-documentation-preview__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.ai-documentation-preview__grid article,
+.ai-documentation-preview__document,
+.ai-documentation-preview__faq {
+  padding: 18px;
+  border: 1px solid rgba(19, 37, 33, 0.1);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.86);
+}
+
+.ai-documentation-preview ul,
+.ai-documentation-preview ol {
+  padding-left: 1.15rem;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.ai-documentation-preview__cta {
+  color: var(--primary-strong);
+  font-weight: 800;
+}
+
+.ai-documentation-preview__document pre,
+.project-documentation__content {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--ink);
+  font-family: inherit;
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.ai-documentation-preview__faq dl {
+  display: grid;
+  gap: 12px;
+}
+
+.ai-documentation-preview__faq dt {
+  color: var(--ink);
+  font-weight: 800;
+}
+
+.ai-documentation-preview__faq dd {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
 }
 
 @keyframes modal-enter {

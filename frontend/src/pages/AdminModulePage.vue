@@ -43,6 +43,15 @@ const statusState = ref({
   open: false,
   item: null,
 })
+const aiDocumentationState = ref({
+  open: false,
+  item: null,
+  draft: null,
+  projectPatch: null,
+  loading: false,
+  applying: false,
+  error: '',
+})
 const pendingFiles = ref({})
 const filePreviews = ref({})
 
@@ -145,6 +154,13 @@ function preferredContactLabel(value) {
   }
 
   return labels[value] || value || 'No indicado'
+}
+
+function isMainDemoProduct(item) {
+  const slug = (item?.slug || '').toLowerCase()
+  const title = (item?.title || '').toLowerCase()
+
+  return slug === 'k' || slug.includes('kintiporta') || title.includes('kintiporta')
 }
 
 function buildStats(definitions) {
@@ -767,6 +783,8 @@ function handleModalKeydown(event) {
     closeDeleteModal()
   } else if (statusState.value.open) {
     closeStatusModal()
+  } else if (aiDocumentationState.value.open) {
+    closeAiDocumentationModal()
   } else if (formState.value.open && !saving.value) {
     closeForm()
   }
@@ -777,9 +795,10 @@ watch(
     () => formState.value.open,
     () => deleteState.value.open,
     () => statusState.value.open,
+    () => aiDocumentationState.value.open,
   ],
-  ([formOpen, deleteOpen, statusOpen]) => {
-    document.body.classList.toggle('modal-open', formOpen || deleteOpen || statusOpen)
+  ([formOpen, deleteOpen, statusOpen, aiDocumentationOpen]) => {
+    document.body.classList.toggle('modal-open', formOpen || deleteOpen || statusOpen || aiDocumentationOpen)
   },
 )
 
@@ -836,6 +855,98 @@ async function confirmToggle() {
   }
 }
 
+async function handleCustomAction({ action, item }) {
+  if (action.key === 'generate-documentation') {
+    await openAiDocumentationModal(item)
+  }
+}
+
+async function openAiDocumentationModal(item) {
+  aiDocumentationState.value = {
+    open: true,
+    item,
+    draft: null,
+    projectPatch: null,
+    loading: true,
+    applying: false,
+    error: '',
+  }
+  workingAction.value = true
+  successMessage.value = ''
+  actionErrorMessage.value = ''
+
+  try {
+    const result = await adminApi.generateProjectDocumentation(item.publicId)
+    aiDocumentationState.value = {
+      ...aiDocumentationState.value,
+      draft: result.draft,
+      projectPatch: result.projectPatch,
+      loading: false,
+    }
+  } catch (error) {
+    aiDocumentationState.value = {
+      ...aiDocumentationState.value,
+      error: error.message,
+      loading: false,
+    }
+  } finally {
+    workingAction.value = false
+  }
+}
+
+function closeAiDocumentationModal() {
+  if (aiDocumentationState.value.loading || aiDocumentationState.value.applying) {
+    return
+  }
+
+  aiDocumentationState.value = {
+    open: false,
+    item: null,
+    draft: null,
+    projectPatch: null,
+    loading: false,
+    applying: false,
+    error: '',
+  }
+}
+
+async function applyAiDocumentation() {
+  const item = aiDocumentationState.value.item
+  const projectPatch = aiDocumentationState.value.projectPatch
+
+  if (!item || !projectPatch) {
+    return
+  }
+
+  aiDocumentationState.value = {
+    ...aiDocumentationState.value,
+    applying: true,
+    error: '',
+  }
+  successMessage.value = ''
+
+  try {
+    await adminApi.updateProject(item.publicId, projectPatch)
+    successMessage.value = 'Documentacion generada y aplicada al proyecto.'
+    aiDocumentationState.value = {
+      open: false,
+      item: null,
+      draft: null,
+      projectPatch: null,
+      loading: false,
+      applying: false,
+      error: '',
+    }
+    await loadModule()
+  } catch (error) {
+    aiDocumentationState.value = {
+      ...aiDocumentationState.value,
+      applying: false,
+      error: error.message,
+    }
+  }
+}
+
 async function loadProjectsModule() {
   const [payload, categories, technologies] = await Promise.all([
     adminApi.getProjects({ page: 1, limit: 100 }),
@@ -849,11 +960,11 @@ async function loadProjectsModule() {
   return {
     eyebrow: 'Gestion editorial',
     title: 'Proyectos demo',
-    description: 'Administra los proyectos que aparecen en el portafolio público. Revisa su visibilidad, contenido y rendimiento antes de publicarlos.',
+    description: 'Administra los proyectos que aparecen en el portafolio público. Por ahora KintiPorta funciona como producto demo principal desarrollado por Software Easy Dev; usa OpenAI para convertir su URL en una presentación comercial más completa.',
     stats: buildStats([
       { label: 'Total listado', value: payload.meta?.total || items.length, caption: 'proyectos registrados' },
       { label: 'Publicados visibles', value: items.filter((item) => item.status === 'published').length, caption: 'entre los proyectos recientes' },
-      { label: 'Destacados visibles', value: items.filter((item) => item.isFeatured).length, caption: 'entre los proyectos recientes' },
+      { label: 'Producto principal', value: items.filter(isMainDemoProduct).length, caption: 'KintiPorta como demo central' },
     ]),
     sections: [
       {
@@ -863,6 +974,14 @@ async function loadProjectsModule() {
         editable: true,
         deletable: true,
         toggleable: true,
+        customActions: [
+          {
+            key: 'generate-documentation',
+            label: 'Generar docs IA',
+            variant: 'primary',
+            visible: (item) => !!item.demoUrl,
+          },
+        ],
         columns: [
           { label: 'Proyecto', key: 'title', secondaryKey: 'shortDescription', wide: true },
           { label: 'URL', key: 'demoUrl', href: (item) => item.demoUrl, external: true, truncate: true },
@@ -880,10 +999,15 @@ async function loadProjectsModule() {
             detail('Visibilidad', formatStatus(item.visibility)),
             detail('Tecnologías', item.technologies?.map((technology) => technology.name).join(', ')),
             detail('Versión', item.versionLabel),
+            detail('Producto principal', isMainDemoProduct(item) ? 'Si, demo central de Software Easy Dev' : 'No'),
             detail('Vistas', formatNumber(item.totalProjectViews)),
             detail('Clics al demo', formatNumber(item.totalDemoClicks)),
           ],
-          note: item.isFeatured ? 'Este proyecto está destacado en la landing.' : '',
+          note: isMainDemoProduct(item)
+            ? 'KintiPorta se presenta como producto principal desarrollado por Software Easy Dev.'
+            : item.isFeatured
+              ? 'Este proyecto está destacado en la landing.'
+              : '',
           canDelete: true,
           canToggle: true,
           toggleLabel: item.status === 'archived' ? 'Reactivar' : 'Desactivar',
@@ -1662,6 +1786,121 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           </div>
         </section>
       </div>
+
+      <div
+        v-if="aiDocumentationState.open"
+        class="admin-modal-backdrop"
+        @mousedown.self="closeAiDocumentationModal"
+      >
+        <section
+          class="admin-panel-card admin-modal ai-documentation-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="ai-documentation-title"
+        >
+          <div class="admin-panel-card__header">
+            <div>
+              <p class="section__eyebrow">OpenAI para demos</p>
+              <h2 id="ai-documentation-title">
+                Documentación comercial para {{ aiDocumentationState.item?.title }}
+              </h2>
+            </div>
+            <button
+              class="button button--secondary"
+              type="button"
+              :disabled="aiDocumentationState.loading || aiDocumentationState.applying"
+              @click="closeAiDocumentationModal"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          <div v-if="aiDocumentationState.loading" class="empty-state empty-state--soft">
+            <p>Analizando la URL del proyecto y preparando el borrador comercial...</p>
+          </div>
+
+          <p
+            v-else-if="aiDocumentationState.error"
+            class="form-message form-message--error"
+          >
+            {{ aiDocumentationState.error }}
+          </p>
+
+          <div v-else-if="aiDocumentationState.draft" class="ai-documentation-preview">
+            <article class="info-card">
+              <p class="section__eyebrow">Resumen ejecutivo</p>
+              <h3>{{ aiDocumentationState.draft.metaTitle }}</h3>
+              <p>{{ aiDocumentationState.draft.presentationSummary }}</p>
+              <p class="ai-documentation-preview__cta">
+                {{ aiDocumentationState.draft.callToAction }}
+              </p>
+            </article>
+
+            <div class="ai-documentation-preview__grid">
+              <article>
+                <h3>Puntos de venta</h3>
+                <ul>
+                  <li
+                    v-for="point in aiDocumentationState.draft.sellingPoints"
+                    :key="point"
+                  >
+                    {{ point }}
+                  </li>
+                </ul>
+              </article>
+
+              <article>
+                <h3>Flujo del demo</h3>
+                <ol>
+                  <li
+                    v-for="step in aiDocumentationState.draft.demoFlow"
+                    :key="step"
+                  >
+                    {{ step }}
+                  </li>
+                </ol>
+              </article>
+            </div>
+
+            <article class="ai-documentation-preview__document">
+              <h3>Descripción/documentación que se publicará</h3>
+              <pre>{{ aiDocumentationState.draft.fullDescription }}</pre>
+            </article>
+
+            <article class="ai-documentation-preview__faq">
+              <h3>Preguntas frecuentes sugeridas</h3>
+              <dl>
+                <div
+                  v-for="item in aiDocumentationState.draft.faq"
+                  :key="item.question"
+                >
+                  <dt>{{ item.question }}</dt>
+                  <dd>{{ item.answer }}</dd>
+                </div>
+              </dl>
+            </article>
+
+            <div class="lead-form__actions maintenance-form__actions">
+              <button
+                class="button button--primary"
+                type="button"
+                :disabled="aiDocumentationState.applying"
+                @click="applyAiDocumentation"
+              >
+                {{ aiDocumentationState.applying ? 'Aplicando...' : 'Aplicar al proyecto' }}
+              </button>
+              <button
+                class="button button--secondary"
+                type="button"
+                :disabled="aiDocumentationState.applying"
+                @click="closeAiDocumentationModal"
+              >
+                Revisar después
+              </button>
+            </div>
+          </div>
+        </section>
+      </div>
     </Teleport>
 
     <div v-if="loading" class="empty-state">
@@ -1696,6 +1935,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           :editable="!!section.editable"
           :deletable="!!section.deletable"
           :toggleable="!!section.toggleable"
+          :custom-actions="section.customActions || []"
           :busy="workingAction"
           :create-label="section.createLabel"
           :action-label="section.actionLabel || 'Editar'"
@@ -1703,6 +1943,7 @@ watch(() => route.meta.moduleKey, loadModule, { immediate: true })
           @create="openCreateForm(section.maintenanceType)"
           @remove="requestRemove"
           @toggle="requestToggle"
+          @custom-action="handleCustomAction"
         />
       </section>
     </template>

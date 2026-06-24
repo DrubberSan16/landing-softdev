@@ -1,4 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PoolClient } from 'pg';
 import { Request } from 'express';
 import { DatabaseService } from '../../../common/database/database.service';
@@ -21,11 +27,74 @@ type ProjectIdentity = {
   publishedAt: string | null;
 };
 
+type ProjectForDocumentation = ProjectIdentity & {
+  shortDescription: string;
+  fullDescription: string | null;
+  clientName: string | null;
+  businessSector: string | null;
+  demoSchemaName: string | null;
+  demoUrl: string;
+  repositoryUrl: string | null;
+  videoUrl: string | null;
+  documentationUrl: string | null;
+  coverImageUrl: string | null;
+  logoUrl: string | null;
+  versionLabel: string | null;
+  visibility: string;
+  metaTitle: string | null;
+  metaDescription: string | null;
+  categoryName: string | null;
+  technologies: Array<{
+    name?: string;
+    slug?: string;
+    officialUrl?: string;
+  }>;
+};
+
+type GeneratedProjectDocumentation = {
+  shortDescription: string;
+  fullDescription: string;
+  metaTitle: string;
+  metaDescription: string;
+  clientName: string;
+  businessSector: string;
+  presentationSummary: string;
+  sellingPoints: string[];
+  demoFlow: string[];
+  faq: Array<{
+    question: string;
+    answer: string;
+  }>;
+  callToAction: string;
+};
+
+type OpenAiContentPart = {
+  type?: string;
+  text?: string;
+  refusal?: string;
+};
+
+type OpenAiOutputItem = {
+  type?: string;
+  content?: OpenAiContentPart[];
+};
+
+type OpenAiResponsePayload = {
+  output_text?: string;
+  output?: OpenAiOutputItem[];
+  error?: {
+    message?: string;
+  };
+};
+
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     private readonly databaseService: DatabaseService,
     private readonly auditService: AuditService,
+    private readonly configService: ConfigService,
   ) {}
 
   async list(query: ProjectQueryDto) {
@@ -376,6 +445,42 @@ export class ProjectsService {
     return { message: 'Proyecto eliminado correctamente.' };
   }
 
+  async generateDocumentationDraft(
+    publicId: string,
+    admin: CurrentAdmin,
+    request: Request,
+  ) {
+    const project = await this.getProjectForDocumentation(publicId);
+    const draft = await this.generateDocumentationWithOpenAi(project);
+    const projectPatch = this.buildDocumentationProjectPatch(project, draft);
+
+    await this.auditService.log({
+      adminUserId: admin.id,
+      actionCode: 'projects.ai_documentation.generate',
+      entityName: 'tb_projects',
+      entityId: project.id,
+      description: `Borrador de documentacion generado con OpenAI para ${project.title}`,
+      newData: {
+        publicId: project.publicId,
+        slug: project.slug,
+        sourceUrl: project.demoUrl,
+        model: this.configService.get<string>('OPENAI_MODEL', 'gpt-5.5'),
+      },
+      request,
+    });
+
+    return {
+      project: {
+        publicId: project.publicId,
+        title: project.title,
+        slug: project.slug,
+        demoUrl: project.demoUrl,
+      },
+      draft,
+      projectPatch,
+    };
+  }
+
   async listMedia(projectPublicId: string) {
     const project = await this.getProjectIdentity(projectPublicId);
 
@@ -667,6 +772,308 @@ export class ProjectsService {
     }
 
     return project;
+  }
+
+  private async getProjectForDocumentation(publicId: string) {
+    const project = await this.databaseService.one<ProjectForDocumentation>(
+      `
+        ${this.adminProjectSelect()}
+        WHERE p.public_id = $1::uuid
+          AND p.deleted_at IS NULL
+      `,
+      [publicId],
+    );
+
+    if (!project) {
+      throw new NotFoundException('No se encontro el proyecto solicitado.');
+    }
+
+    return project;
+  }
+
+  private async generateDocumentationWithOpenAi(
+    project: ProjectForDocumentation,
+  ): Promise<GeneratedProjectDocumentation> {
+    const apiKey = this.configService.get<string>('OPENAI_API_KEY');
+
+    if (!apiKey) {
+      throw new BadRequestException(
+        'Configura OPENAI_API_KEY en el backend para generar documentacion con OpenAI.',
+      );
+    }
+
+    if (!project.demoUrl) {
+      throw new BadRequestException(
+        'El proyecto necesita una URL de demo antes de generar documentacion.',
+      );
+    }
+
+    const model = this.configService.get<string>('OPENAI_MODEL', 'gpt-5.5');
+    let response: Response;
+
+    try {
+      response = await fetch('https://api.openai.com/v1/responses', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model,
+          tools: [{ type: 'web_search' }],
+          input: [
+            {
+              role: 'developer',
+              content:
+                'Eres estratega de producto y documentacion comercial para Software Easy Dev. Escribes en espanol claro, persuasivo y verificable. Si la URL no se puede analizar, usa solo los datos entregados y dilo de forma honesta sin inventar caracteristicas.',
+            },
+            {
+              role: 'user',
+              content: this.buildDocumentationPrompt(project),
+            },
+          ],
+          text: {
+            format: this.projectDocumentationSchema(),
+          },
+        }),
+        signal: AbortSignal.timeout(60000),
+      });
+    } catch {
+      throw new BadRequestException(
+        'No fue posible conectar con OpenAI. Revisa la clave, el modelo configurado o intenta nuevamente.',
+      );
+    }
+
+    const payload = (await response
+      .json()
+      .catch(() => null)) as OpenAiResponsePayload | null;
+
+    if (!response.ok) {
+      const message =
+        payload?.error?.message ||
+        'OpenAI no pudo generar la documentacion del proyecto.';
+      throw new BadRequestException(message);
+    }
+
+    const outputText = this.extractOpenAiText(payload);
+
+    try {
+      return this.normalizeGeneratedDocumentation(JSON.parse(outputText));
+    } catch (error) {
+      this.logger.error(
+        `OpenAI devolvio una respuesta no parseable para ${project.slug}.`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new BadRequestException(
+        'OpenAI genero una respuesta inesperada. Intenta nuevamente.',
+      );
+    }
+  }
+
+  private buildDocumentationPrompt(project: ProjectForDocumentation) {
+    const technologies = project.technologies
+      ?.map((technology) => technology.name)
+      .filter(Boolean)
+      .join(', ');
+
+    return `
+Analiza la URL del proyecto y genera documentacion comercial lista para presentar a un cliente.
+
+URL a analizar: ${project.demoUrl}
+
+Datos actuales del proyecto:
+- Titulo: ${project.title}
+- Slug: ${project.slug}
+- Descripcion corta actual: ${project.shortDescription || 'No registrada'}
+- Descripcion completa actual: ${project.fullDescription || 'No registrada'}
+- Categoria: ${project.categoryName || 'No registrada'}
+- Tecnologias: ${technologies || 'No registradas'}
+- Version: ${project.versionLabel || 'No registrada'}
+- Cliente/caso actual: ${project.clientName || 'No registrado'}
+- Sector actual: ${project.businessSector || 'No registrado'}
+- URL de documentacion actual: ${project.documentationUrl || 'No registrada'}
+
+Contexto comercial:
+- Software Easy Dev desarrollo esta demo.
+- Por ahora KintiPorta es el producto demo principal de Software Easy Dev.
+- Si el proyecto analizado es KintiPorta, referencialo como producto principal y explica que convierte una idea de puerta en una solicitud clara para fabricar.
+- El contenido debe atraer al cliente: problema que resuelve, valor del demo, flujo de uso, beneficios, posibles casos de uso, preguntas frecuentes y llamado a la accion.
+- No menciones informacion tecnica que no puedas inferir de la URL o de los datos del proyecto.
+
+Devuelve JSON valido siguiendo exactamente el esquema solicitado.
+`.trim();
+  }
+
+  private projectDocumentationSchema() {
+    return {
+      type: 'json_schema',
+      name: 'project_demo_documentation',
+      strict: true,
+      schema: {
+        type: 'object',
+        additionalProperties: false,
+        required: [
+          'shortDescription',
+          'fullDescription',
+          'metaTitle',
+          'metaDescription',
+          'clientName',
+          'businessSector',
+          'presentationSummary',
+          'sellingPoints',
+          'demoFlow',
+          'faq',
+          'callToAction',
+        ],
+        properties: {
+          shortDescription: {
+            type: 'string',
+            description:
+              'Descripcion comercial de maximo 300 caracteres para cards y listados.',
+          },
+          fullDescription: {
+            type: 'string',
+            description:
+              'Documentacion comercial extensa en formato Markdown sencillo, sin bloques de codigo.',
+          },
+          metaTitle: {
+            type: 'string',
+            description: 'Titulo SEO de maximo 180 caracteres.',
+          },
+          metaDescription: {
+            type: 'string',
+            description: 'Descripcion SEO de maximo 300 caracteres.',
+          },
+          clientName: {
+            type: 'string',
+            description:
+              'Cliente, propietario o caso de referencia. Usa Software Easy Dev si aplica.',
+          },
+          businessSector: {
+            type: 'string',
+            description: 'Sector de negocio principal del proyecto.',
+          },
+          presentationSummary: {
+            type: 'string',
+            description:
+              'Resumen ejecutivo para explicar el demo en una reunion comercial.',
+          },
+          sellingPoints: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          demoFlow: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          faq: {
+            type: 'array',
+            items: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['question', 'answer'],
+              properties: {
+                question: { type: 'string' },
+                answer: { type: 'string' },
+              },
+            },
+          },
+          callToAction: {
+            type: 'string',
+            description:
+              'Llamado a la accion breve para invitar al cliente a solicitar una propuesta.',
+          },
+        },
+      },
+    };
+  }
+
+  private extractOpenAiText(payload: OpenAiResponsePayload | null) {
+    if (payload?.output_text) {
+      return payload.output_text;
+    }
+
+    const content = payload?.output
+      ?.flatMap((item) => item.content ?? [])
+      .find((part) => part.text || part.refusal);
+
+    if (content?.refusal) {
+      throw new BadRequestException(content.refusal);
+    }
+
+    if (content?.text) {
+      return content.text;
+    }
+
+    throw new BadRequestException(
+      'OpenAI no devolvio contenido para la documentacion.',
+    );
+  }
+
+  private normalizeGeneratedDocumentation(
+    value: unknown,
+  ): GeneratedProjectDocumentation {
+    const draft = value as Partial<GeneratedProjectDocumentation>;
+
+    return {
+      shortDescription: this.limitText(draft.shortDescription, 300),
+      fullDescription: this.limitText(draft.fullDescription, 8000),
+      metaTitle: this.limitText(draft.metaTitle, 180),
+      metaDescription: this.limitText(draft.metaDescription, 300),
+      clientName: this.limitText(draft.clientName, 150),
+      businessSector: this.limitText(draft.businessSector, 120),
+      presentationSummary: this.limitText(draft.presentationSummary, 1200),
+      sellingPoints: this.normalizeStringArray(draft.sellingPoints),
+      demoFlow: this.normalizeStringArray(draft.demoFlow),
+      faq: Array.isArray(draft.faq)
+        ? draft.faq.slice(0, 6).map((item) => ({
+            question: this.limitText(item?.question, 180),
+            answer: this.limitText(item?.answer, 500),
+          }))
+        : [],
+      callToAction: this.limitText(draft.callToAction, 500),
+    };
+  }
+
+  private buildDocumentationProjectPatch(
+    project: ProjectForDocumentation,
+    draft: GeneratedProjectDocumentation,
+  ) {
+    return {
+      shortDescription: draft.shortDescription || project.shortDescription,
+      fullDescription:
+        draft.fullDescription ||
+        project.fullDescription ||
+        project.shortDescription,
+      metaTitle: draft.metaTitle || project.metaTitle || project.title,
+      metaDescription:
+        draft.metaDescription ||
+        project.metaDescription ||
+        draft.shortDescription ||
+        project.shortDescription,
+      clientName: draft.clientName || project.clientName || null,
+      businessSector: draft.businessSector || project.businessSector || null,
+    };
+  }
+
+  private normalizeStringArray(value: unknown) {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+
+    return value
+      .map((item) => this.limitText(item, 500))
+      .filter(Boolean)
+      .slice(0, 6);
+  }
+
+  private limitText(value: unknown, maxLength: number) {
+    if (typeof value !== 'string') {
+      return '';
+    }
+
+    const trimmed = value.trim();
+    return trimmed.length > maxLength ? trimmed.slice(0, maxLength) : trimmed;
   }
 
   private async clearMediaCover(projectId: number, client: PoolClient) {

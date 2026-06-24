@@ -72,6 +72,15 @@ const galleryItems = computed(() => {
   return project.value.media.filter((item) => item.fileUrl)
 })
 
+const isMainProduct = computed(() => {
+  const slug = (project.value?.slug || '').toLowerCase()
+  const title = (project.value?.title || '').toLowerCase()
+
+  return slug === 'k' || slug.includes('kintiporta') || title.includes('kintiporta')
+})
+
+const documentationContent = computed(() => project.value?.fullDescription?.trim() || '')
+
 async function loadProject() {
   loading.value = true
   errorMessage.value = ''
@@ -118,9 +127,12 @@ watch(
       <section class="page-banner project-banner">
         <div class="project-banner__copy">
           <p class="section__eyebrow">{{ project.categoryName || 'Proyecto demo' }}</p>
+          <span v-if="isMainProduct" class="project-main-badge">
+            Producto principal de Software Easy Dev
+          </span>
           <h1>{{ project.title }}</h1>
           <p class="lead">
-            {{ project.fullDescription || project.shortDescription }}
+            {{ project.shortDescription }}
           </p>
 
           <div class="hero__actions">
@@ -155,7 +167,13 @@ watch(
         </div>
 
         <aside class="stack-card stack-card--accent project-summary-card">
-          <p class="stack-card__label">Ficha ejecutiva</p>
+          <p class="stack-card__label">
+            {{ isMainProduct ? 'Producto principal' : 'Ficha ejecutiva' }}
+          </p>
+          <p v-if="isMainProduct" class="project-summary-card__intro">
+            Demo desarrollado por Software Easy Dev para enseñar una experiencia real,
+            presentable y lista para conversar con clientes.
+          </p>
           <ul class="meta-list">
             <li>
               <span>Version</span>
@@ -187,6 +205,21 @@ watch(
             :caption="stat.caption"
           />
         </div>
+      </section>
+
+      <section v-if="documentationContent" class="section project-documentation">
+        <div class="section__header">
+          <p class="section__eyebrow">Documentación comercial</p>
+          <h2>Contexto para presentar el demo con una narrativa clara.</h2>
+          <p class="section__intro">
+            Esta información resume qué hace el proyecto, por qué importa y cómo ayuda a
+            conversar con un cliente interesado.
+          </p>
+        </div>
+
+        <article class="info-card project-documentation__card">
+          <pre class="project-documentation__content">{{ documentationContent }}</pre>
+        </article>
       </section>
 
       <section class="section">

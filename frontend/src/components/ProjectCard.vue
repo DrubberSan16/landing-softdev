@@ -23,6 +23,13 @@ const demoLink = computed(() => {
   const referrerUrl = typeof window === 'undefined' ? '' : window.location.href
   return buildDemoRedirectUrl(props.project.slug, getSessionToken(), referrerUrl)
 })
+
+const isMainProduct = computed(() => {
+  const slug = (props.project.slug || '').toLowerCase()
+  const title = (props.project.title || '').toLowerCase()
+
+  return slug === 'k' || slug.includes('kintiporta') || title.includes('kintiporta')
+})
 </script>
 
 <template>
@@ -42,10 +49,14 @@ const demoLink = computed(() => {
     <div class="project-card__body">
       <div class="project-card__meta">
         <span>{{ project.categoryName || 'Demo' }}</span>
+        <span v-if="isMainProduct" class="project-card__primary-badge">Producto principal</span>
         <span v-if="project.versionLabel">{{ project.versionLabel }}</span>
       </div>
 
       <h3>{{ project.title }}</h3>
+      <p v-if="isMainProduct" class="project-card__highlight">
+        Demo principal desarrollado por Software Easy Dev para mostrar una experiencia real de producto.
+      </p>
       <p>{{ project.shortDescription }}</p>
 
       <div v-if="project.technologies?.length" class="tag-list">

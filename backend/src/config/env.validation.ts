@@ -43,4 +43,6 @@ export const envValidationSchema = Joi.object({
   AUTH_MAX_FAILED_ATTEMPTS: Joi.number().integer().min(3).max(10).default(5),
   AUTH_LOCK_MINUTES: Joi.number().integer().min(1).max(1440).default(15),
   UPLOAD_DIR: Joi.string().default('uploads/projects'),
+  OPENAI_API_KEY: Joi.string().allow('').optional(),
+  OPENAI_MODEL: Joi.string().default('gpt-5.5'),
 });

@@ -158,6 +158,14 @@ export const adminApi = {
       },
     })
   },
+  generateProjectDocumentation(publicId) {
+    return request(`/admin/projects/${publicId}/ai-documentation`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${getAdminSessionToken()}`,
+      },
+    })
+  },
   getCategories() {
     return request('/admin/categories', {
       headers: {
