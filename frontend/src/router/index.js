@@ -5,6 +5,7 @@ import AdminDashboardPage from '../pages/AdminDashboardPage.vue'
 import AdminLoginPage from '../pages/AdminLoginPage.vue'
 import AdminModulePage from '../pages/AdminModulePage.vue'
 import ContactPage from '../pages/ContactPage.vue'
+import DemoErpPage from '../pages/DemoErpPage.vue'
 import HomePage from '../pages/HomePage.vue'
 import NotFoundPage from '../pages/NotFoundPage.vue'
 import ProjectDetailPage from '../pages/ProjectDetailPage.vue'
@@ -53,6 +54,15 @@ const routes = [
         },
       },
     ],
+  },
+  {
+    path: '/demo-erp',
+    name: 'demo-erp',
+    component: DemoErpPage,
+    meta: {
+      pageType: 'other',
+      routeName: 'demo-erp',
+    },
   },
   {
     path: '/admin/login',

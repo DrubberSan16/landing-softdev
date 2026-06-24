@@ -27,10 +27,7 @@
   --max-width: 1200px;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
   color: var(--text);
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 34%),
-    linear-gradient(225deg, rgba(255, 122, 89, 0.16), transparent 30%),
-    linear-gradient(180deg, #f8fbfa 0%, #eef6f3 48%, #f7f3ea 100%);
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.12), transparent 34%), linear-gradient(225deg, rgba(255, 122, 89, 0.16), transparent 30%), linear-gradient(180deg, #f8fbfa 0%, #eef6f3 48%, #f7f3ea 100%);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -58,9 +55,7 @@ body::before {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  background-image:
-    linear-gradient(rgba(15, 118, 110, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(15, 118, 110, 0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(15, 118, 110, 0.08) 1px, transparent 1px);
   background-size: 52px 52px;
   mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.34), transparent 76%);
 }
@@ -359,9 +354,7 @@ h3 {
   padding: clamp(32px, 5vw, 64px);
   border: 1px solid rgba(19, 37, 33, 0.08);
   border-radius: var(--radius-xl);
-  background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(231, 243, 239, 0.9)),
-    #fff;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.94), rgba(231, 243, 239, 0.9)), #fff;
   box-shadow: var(--shadow-lg);
 }
 
@@ -556,9 +549,7 @@ h3 {
   position: relative;
   overflow: hidden;
   min-height: 210px;
-  background:
-    linear-gradient(145deg, #ffffff, rgba(231, 243, 239, 0.82)),
-    #fff;
+  background: linear-gradient(145deg, #ffffff, rgba(231, 243, 239, 0.82)), #fff;
 }
 
 .feature-card--bright::after {
@@ -575,30 +566,22 @@ h3 {
 .stack-card--accent,
 .page-banner--soft,
 .auth-card--intro {
-  background:
-    linear-gradient(145deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.96)),
-    #fff;
+  background: linear-gradient(145deg, rgba(15, 118, 110, 0.12), rgba(255, 255, 255, 0.96)), #fff;
 }
 
 .feature-card--soft,
 .info-card--accent,
 .info-card--contrast {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(231, 243, 239, 0.78)),
-    #fff;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.94), rgba(231, 243, 239, 0.78)), #fff;
 }
 
 .info-card--contrast {
-  background:
-    linear-gradient(145deg, rgba(16, 35, 63, 0.96), rgba(15, 118, 110, 0.92)),
-    var(--ink);
+  background: linear-gradient(145deg, rgba(16, 35, 63, 0.96), rgba(15, 118, 110, 0.92)), var(--ink);
   color: #fff;
 }
 
 .info-card--accent {
-  background:
-    linear-gradient(145deg, rgba(255, 122, 89, 0.12), rgba(255, 255, 255, 0.96)),
-    #fff;
+  background: linear-gradient(145deg, rgba(255, 122, 89, 0.12), rgba(255, 255, 255, 0.96)), #fff;
 }
 
 .bullet-list,
@@ -719,9 +702,7 @@ h3 {
 
 .project-card__cover {
   aspect-ratio: 16 / 10;
-  background:
-    linear-gradient(135deg, rgba(15, 118, 110, 0.2), rgba(255, 122, 89, 0.18)),
-    #e7f3ef;
+  background: linear-gradient(135deg, rgba(15, 118, 110, 0.2), rgba(255, 122, 89, 0.18)), #e7f3ef;
 }
 
 .project-card__cover img {
@@ -936,9 +917,7 @@ textarea {
 }
 
 .media-card--showcase {
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(231, 243, 239, 0.92)),
-    #fff;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(231, 243, 239, 0.92)), #fff;
 }
 
 .media-card--showcase img {
@@ -1200,6 +1179,317 @@ body.modal-open {
   color: var(--muted);
   font-size: 0.9rem;
   line-height: 1.55;
+}
+
+.erp-app {
+  min-height: 100vh;
+  background: radial-gradient(circle at top left, rgba(15, 118, 110, 0.18), transparent 32%), linear-gradient(135deg, #edf7f4 0%, #f8fbfa 46%, #fff6ee 100%);
+}
+
+.erp-login {
+  display: grid;
+  min-height: 100vh;
+  place-items: center;
+  padding: 32px;
+}
+
+.erp-login__card,
+.erp-panel,
+.erp-modal,
+.erp-sidebar,
+.erp-kpi-card {
+  border: 1px solid rgba(19, 37, 33, 0.12);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow-md);
+}
+
+.erp-login__card {
+  display: grid;
+  gap: 18px;
+  width: min(520px, 100%);
+  padding: 32px;
+}
+
+.erp-login__card p {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.erp-login__form,
+.erp-form-grid,
+.erp-inline-form {
+  display: grid;
+  gap: 12px;
+}
+
+.erp-login__form label,
+.erp-form-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.erp-credentials {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px dashed rgba(15, 118, 110, 0.28);
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.65);
+  color: var(--primary-strong);
+}
+
+.erp-shell {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 22px;
+  min-height: 100vh;
+  padding: 22px;
+}
+
+.erp-sidebar {
+  position: sticky;
+  top: 22px;
+  display: grid;
+  align-self: start;
+  gap: 12px;
+  max-height: calc(100vh - 44px);
+  padding: 18px;
+  overflow-y: auto;
+}
+
+.erp-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.1);
+}
+
+.erp-brand > span {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--ink));
+  color: #fff;
+  font-weight: 900;
+}
+
+.erp-brand strong,
+.erp-user-card strong,
+.erp-row strong {
+  color: var(--ink);
+}
+
+.erp-brand small,
+.erp-user-card span,
+.erp-user-card small,
+.erp-row span,
+.erp-table small {
+  color: var(--muted);
+}
+
+.erp-nav-button {
+  display: grid;
+  gap: 4px;
+  width: 100%;
+  padding: 14px;
+  border: 1px solid rgba(19, 37, 33, 0.08);
+  border-radius: var(--radius-md);
+  background: rgba(248, 251, 250, 0.72);
+  color: var(--text);
+  text-align: left;
+}
+
+.erp-nav-button.is-active {
+  border-color: rgba(15, 118, 110, 0.24);
+  background: rgba(15, 118, 110, 0.12);
+  color: var(--primary-strong);
+}
+
+.erp-user-card {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 14px;
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.68);
+}
+
+.erp-main {
+  display: grid;
+  align-content: start;
+  gap: 18px;
+  min-width: 0;
+}
+
+.erp-header,
+.erp-panel__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.erp-header {
+  padding: 18px 4px;
+}
+
+.erp-header h1 {
+  font-size: clamp(2rem, 3vw, 3.8rem);
+}
+
+.erp-dashboard,
+.erp-dashboard-grid {
+  display: grid;
+  gap: 18px;
+}
+
+.erp-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.erp-kpi-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+}
+
+.erp-kpi-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.erp-kpi-card strong {
+  color: var(--primary-strong);
+  font-size: 1.8rem;
+}
+
+.erp-kpi-card small,
+.erp-panel p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.erp-dashboard-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.erp-panel {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+  padding: 22px;
+}
+
+.erp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.08);
+}
+
+.erp-row:last-child {
+  border-bottom: 0;
+}
+
+.erp-row > div {
+  display: grid;
+  gap: 4px;
+}
+
+.erp-inline-form {
+  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) 100px 140px 150px auto;
+  align-items: end;
+}
+
+.erp-table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(19, 37, 33, 0.1);
+  border-radius: var(--radius-md);
+}
+
+.erp-table {
+  width: 100%;
+  min-width: 860px;
+  border-collapse: collapse;
+  background: #fff;
+}
+
+.erp-table th,
+.erp-table td {
+  padding: 13px 14px;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.08);
+  text-align: left;
+  vertical-align: top;
+}
+
+.erp-table th {
+  color: var(--primary-strong);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.erp-table td {
+  color: var(--ink);
+}
+
+.erp-table td > strong,
+.erp-table td > small {
+  display: block;
+}
+
+.erp-actions,
+.erp-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.erp-small-button {
+  min-height: 34px;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.78rem;
+}
+
+.erp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  overflow-y: auto;
+  background: rgba(10, 29, 25, 0.62);
+  backdrop-filter: blur(6px);
+}
+
+.erp-modal {
+  display: grid;
+  gap: 18px;
+  width: min(760px, 100%);
+  padding: 24px;
+}
+
+.erp-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.erp-form-actions {
+  grid-column: 1 / -1;
 }
 
 .ai-documentation-preview__faq dl {
@@ -1622,9 +1912,7 @@ body.modal-open {
   padding: clamp(18px, 3vw, 28px);
   border: 1px solid rgba(19, 37, 33, 0.1);
   border-radius: var(--radius-xl);
-  background:
-    linear-gradient(145deg, rgba(16, 35, 63, 0.96), rgba(15, 118, 110, 0.9)),
-    var(--ink);
+  background: linear-gradient(145deg, rgba(16, 35, 63, 0.96), rgba(15, 118, 110, 0.9)), var(--ink);
   color: #fff;
   box-shadow: 0 24px 70px rgba(16, 35, 63, 0.22);
 }
@@ -1770,9 +2058,7 @@ body.modal-open {
   padding: 20px;
   border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: var(--radius-md);
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(231, 243, 239, 0.68)),
-    #fff;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.88), rgba(231, 243, 239, 0.68)), #fff;
   box-shadow: 0 16px 36px rgba(16, 35, 63, 0.08);
 }
 
@@ -1932,9 +2218,28 @@ body.modal-open {
   .capability-grid,
   .contact-highlight-grid,
   .demo-scope-grid,
+  .erp-dashboard-grid,
+  .erp-form-grid,
+  .erp-inline-form,
+  .erp-kpi-grid,
   .filter-bar,
   .lead-form {
     grid-template-columns: 1fr;
+  }
+
+  .erp-shell {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .erp-sidebar {
+    position: static;
+    max-height: none;
+  }
+
+  .erp-header,
+  .erp-panel__header {
+    display: grid;
   }
 
   .admin-list__details {

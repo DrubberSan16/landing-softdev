@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { DatabaseModule } from './common/database/database.module';
 import { envValidationSchema } from './config/env.validation';
 import { AdminModule } from './modules/admin/admin.module';
+import { ErpModule } from './modules/erp/erp.module';
 import { PublicModule } from './modules/public/public.module';
 
 @Module({
@@ -21,6 +22,7 @@ import { PublicModule } from './modules/public/public.module';
     DatabaseModule,
     PublicModule,
     AdminModule,
+    ErpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

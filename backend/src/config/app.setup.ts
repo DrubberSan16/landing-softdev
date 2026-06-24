@@ -39,14 +39,15 @@ function useApiPrefixFallback(app: INestApplication, apiPrefix: string): void {
   }
 
   const prefixPath = `/${normalizedPrefix}`;
-  const fallbackSegments = ['/public', '/admin', '/health'];
+  const fallbackSegments = ['/public', '/admin', '/erp', '/health'];
 
   app.use((request: Request, _response: Response, next: NextFunction) => {
     const requestPath = request.url.split('?')[0];
     const alreadyPrefixed =
       requestPath === prefixPath || requestPath.startsWith(`${prefixPath}/`);
     const needsPrefix = fallbackSegments.some(
-      (segment) => requestPath === segment || requestPath.startsWith(`${segment}/`),
+      (segment) =>
+        requestPath === segment || requestPath.startsWith(`${segment}/`),
     );
 
     if (!alreadyPrefixed && needsPrefix) {

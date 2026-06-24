@@ -1,5 +1,6 @@
 import { appConfig } from './config'
 import { getAdminSessionToken } from '../utils/admin-session'
+import { getErpSessionToken } from '../utils/erp-session'
 
 function buildUrl(path, query = {}) {
   const url = new URL(`${appConfig.apiBaseUrl}${path}`)
@@ -19,10 +20,7 @@ async function parseResponse(response) {
   const payload = isJson ? await response.json() : await response.text()
 
   if (!response.ok) {
-    const message =
-      typeof payload === 'string'
-        ? payload
-        : payload?.message || payload?.error || 'No se pudo completar la solicitud.'
+    const message = typeof payload === 'string' ? payload : payload?.message || payload?.error || 'No se pudo completar la solicitud.'
 
     throw new Error(Array.isArray(message) ? message.join(', ') : message)
   }
@@ -474,6 +472,69 @@ export const adminApi = {
       },
       query,
     )
+  },
+}
+
+function erpAuthHeaders() {
+  return {
+    Authorization: `Bearer ${getErpSessionToken()}`,
+  }
+}
+
+export const erpApi = {
+  login(payload) {
+    return request('/erp/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  },
+  me() {
+    return request('/erp/auth/me', {
+      headers: erpAuthHeaders(),
+    })
+  },
+  logout() {
+    return request('/erp/auth/logout', {
+      method: 'POST',
+      headers: erpAuthHeaders(),
+    })
+  },
+  getDashboard() {
+    return request('/erp/dashboard', {
+      headers: erpAuthHeaders(),
+    })
+  },
+  list(resource) {
+    return request(`/erp/${resource}`, {
+      headers: erpAuthHeaders(),
+    })
+  },
+  create(resource, payload) {
+    return request(`/erp/${resource}`, {
+      method: 'POST',
+      headers: erpAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+  },
+  update(resource, id, payload) {
+    return request(`/erp/${resource}/${id}`, {
+      method: 'PATCH',
+      headers: erpAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+  },
+  updateInvoiceStatus(id, payload) {
+    return request(`/erp/invoices/${id}/status`, {
+      method: 'PATCH',
+      headers: erpAuthHeaders(),
+      body: JSON.stringify(payload),
+    })
+  },
+  remove(resource, id) {
+    return request(`/erp/${resource}/${id}`, {
+      method: 'DELETE',
+      headers: erpAuthHeaders(),
+    })
   },
 }
 
