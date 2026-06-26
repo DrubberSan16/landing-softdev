@@ -17,6 +17,46 @@ const modules = [
   { key: 'users', label: 'Usuarios', description: 'Acceso ERP' },
 ]
 
+const menuSections = [
+  {
+    type: 'item',
+    key: 'dashboard',
+    label: 'Dashboard',
+    description: 'Componente Dashboard',
+    icon: 'DB',
+  },
+  {
+    type: 'group',
+    key: 'administration',
+    label: 'Administracion',
+    description: 'Tag administrativa',
+    icon: 'AD',
+    children: [
+      { key: 'customers', label: 'Clientes', description: 'Cartera comercial', icon: 'CL' },
+      { key: 'users', label: 'Usuarios', description: 'Acceso ERP', icon: 'US' },
+    ],
+  },
+  {
+    type: 'group',
+    key: 'maintenance',
+    label: 'Mantenimiento',
+    description: 'Tag mantenedor',
+    icon: 'MT',
+    children: [
+      { key: 'products', label: 'Inventario', description: 'Productos y stock', icon: 'PR' },
+      { key: 'suppliers', label: 'Proveedores', description: 'Abastecimiento', icon: 'PV' },
+    ],
+  },
+  {
+    type: 'group',
+    key: 'commercial',
+    label: 'Comercial',
+    description: 'Ventas y cobros',
+    icon: 'CO',
+    children: [{ key: 'invoices', label: 'Facturas', description: 'Cabecera y detalle', icon: 'FT' }],
+  },
+]
+
 const statusOptions = [
   { label: 'Activo', value: 'active' },
   { label: 'Inactivo', value: 'inactive' },
@@ -120,6 +160,11 @@ const loginError = ref('')
 const appError = ref('')
 const activeModule = ref('dashboard')
 const sidebarOpen = ref(true)
+const openMenuGroups = ref({
+  administration: true,
+  maintenance: true,
+  commercial: true,
+})
 const user = ref(null)
 const loginForm = ref({ ...defaultCredentials })
 const dashboard = ref(null)
@@ -230,6 +275,18 @@ function setModule(moduleKey) {
 
 function toggleSidebar() {
   sidebarOpen.value = !sidebarOpen.value
+}
+
+function toggleMenuGroup(groupKey) {
+  openMenuGroups.value[groupKey] = !openMenuGroups.value[groupKey]
+}
+
+function isMenuGroupOpen(groupKey) {
+  return Boolean(openMenuGroups.value[groupKey])
+}
+
+function isMenuGroupActive(section) {
+  return section.children?.some((child) => child.key === activeModule.value)
 }
 
 function statusLabel(value) {
@@ -508,32 +565,67 @@ onMounted(boot)
 
     <section v-else class="erp-shell" :class="{ 'is-sidebar-collapsed': !sidebarOpen }">
       <aside class="erp-sidebar" :aria-expanded="sidebarOpen">
-        <div class="erp-brand">
-          <span>ERP</span>
-          <div class="erp-brand__text">
-            <strong>EasyERP Demo</strong>
-            <small>Aplicacion separada</small>
+        <div class="erp-sidebar__top">
+          <div class="erp-profile">
+            <span class="erp-profile__logo">ERP</span>
+            <div class="erp-profile__text">
+              <strong>EasyERP Demo</strong>
+              <small>{{ user.fullName }}</small>
+            </div>
           </div>
+
           <button class="erp-sidebar-toggle" type="button" :aria-label="sidebarOpen ? 'Cerrar menu' : 'Abrir menu'" @click="toggleSidebar">
-            <span>{{ sidebarOpen ? 'Cerrar menu' : 'Abrir menu' }}</span>
+            <span>{{ sidebarOpen ? 'Cerrar' : 'Abrir' }}</span>
             <b>{{ sidebarOpen ? '-' : '+' }}</b>
           </button>
         </div>
 
+        <div class="erp-account-card">
+          <span>CUENTA ACTIVA</span>
+          <strong>{{ user.email }}</strong>
+        </div>
+
+        <div class="erp-welcome-link">
+          <span class="erp-nav-icon">IN</span>
+          <strong>Bienvenid@</strong>
+        </div>
+
         <nav class="erp-nav" aria-label="Modulos ERP">
-          <button v-for="module in modules" :key="module.key" class="erp-nav-button" :class="{ 'is-active': activeModule === module.key }" type="button" :title="module.label" @click="setModule(module.key)">
-            <span class="erp-nav-button__letter">{{ module.label.slice(0, 2) }}</span>
-            <span class="erp-nav-button__content">
-              <strong>{{ module.label }}</strong>
-              <small>{{ module.description }}</small>
-            </span>
-          </button>
+          <template v-for="section in menuSections" :key="section.key">
+            <button v-if="section.type === 'item'" class="erp-nav-item" :class="{ 'is-active': activeModule === section.key }" type="button" :title="section.label" @click="setModule(section.key)">
+              <span class="erp-nav-icon">{{ section.icon }}</span>
+              <span class="erp-nav-copy">
+                <strong>{{ section.label }}</strong>
+                <small>{{ section.description }}</small>
+              </span>
+            </button>
+
+            <div v-else class="erp-nav-group" :class="{ 'is-open': isMenuGroupOpen(section.key), 'is-active': isMenuGroupActive(section) }">
+              <button class="erp-nav-item erp-nav-item--group" type="button" :title="section.label" @click="toggleMenuGroup(section.key)">
+                <span class="erp-nav-icon">{{ section.icon }}</span>
+                <span class="erp-nav-copy">
+                  <strong>{{ section.label }}</strong>
+                  <small>{{ section.description }}</small>
+                </span>
+                <span class="erp-nav-caret">{{ isMenuGroupOpen(section.key) ? '^' : 'v' }}</span>
+              </button>
+
+              <div v-if="isMenuGroupOpen(section.key)" class="erp-nav-children">
+                <button v-for="child in section.children" :key="child.key" class="erp-nav-child" :class="{ 'is-active': activeModule === child.key }" type="button" :title="child.label" @click="setModule(child.key)">
+                  <span class="erp-nav-child__icon">{{ child.icon }}</span>
+                  <span>
+                    <strong>{{ child.label }}</strong>
+                    <small>{{ child.description }}</small>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </template>
         </nav>
 
         <div class="erp-user-card">
-          <strong>{{ user.fullName }}</strong>
-          <span>{{ user.email }}</span>
-          <small>{{ statusLabel(user.role) }}</small>
+          <span>Rol actual</span>
+          <strong>{{ statusLabel(user.role) }}</strong>
           <button class="button button--secondary" type="button" @click="logout">Cerrar sesion</button>
         </div>
       </aside>
