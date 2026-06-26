@@ -1197,6 +1197,7 @@ body.modal-open {
 .erp-panel,
 .erp-modal,
 .erp-sidebar,
+.erp-invoice-card,
 .erp-kpi-card {
   border: 1px solid rgba(19, 37, 33, 0.12);
   border-radius: var(--radius-lg);
@@ -1224,7 +1225,8 @@ body.modal-open {
 }
 
 .erp-login__form label,
-.erp-form-grid label {
+.erp-form-grid label,
+.erp-invoice-builder label {
   display: grid;
   gap: 6px;
   color: var(--ink);
@@ -1260,6 +1262,52 @@ body.modal-open {
   overflow-y: auto;
 }
 
+.erp-shell.is-sidebar-collapsed {
+  grid-template-columns: 88px minmax(0, 1fr);
+}
+
+.erp-shell.is-sidebar-collapsed .erp-sidebar {
+  padding: 14px 10px;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-brand {
+  justify-content: center;
+  padding-bottom: 8px;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-brand__text,
+.erp-shell.is-sidebar-collapsed .erp-sidebar-toggle span,
+.erp-shell.is-sidebar-collapsed .erp-nav-button__content,
+.erp-shell.is-sidebar-collapsed .erp-user-card span,
+.erp-shell.is-sidebar-collapsed .erp-user-card small,
+.erp-shell.is-sidebar-collapsed .erp-user-card .button {
+  display: none;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-sidebar-toggle {
+  width: 100%;
+  margin-left: 0;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-nav-button {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 10px 8px;
+  text-align: center;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-user-card {
+  justify-items: center;
+  padding: 10px;
+}
+
+.erp-shell.is-sidebar-collapsed .erp-user-card strong {
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .erp-brand {
   display: flex;
   align-items: center;
@@ -1293,9 +1341,16 @@ body.modal-open {
   color: var(--muted);
 }
 
+.erp-nav {
+  display: grid;
+  gap: 10px;
+}
+
 .erp-nav-button {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 38px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
   width: 100%;
   padding: 14px;
   border: 1px solid rgba(19, 37, 33, 0.08);
@@ -1303,6 +1358,45 @@ body.modal-open {
   background: rgba(248, 251, 250, 0.72);
   color: var(--text);
   text-align: left;
+}
+
+.erp-nav-button__letter {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 14px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--primary-strong);
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.erp-nav-button__content {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.erp-sidebar-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-left: auto;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid rgba(19, 37, 33, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--primary-strong);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.erp-sidebar-toggle b {
+  line-height: 1;
 }
 
 .erp-nav-button.is-active {
@@ -1337,6 +1431,13 @@ body.modal-open {
 
 .erp-header {
   padding: 18px 4px;
+}
+
+.erp-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
 }
 
 .erp-header h1 {
@@ -1412,6 +1513,121 @@ body.modal-open {
 .erp-inline-form {
   grid-template-columns: minmax(160px, 1fr) minmax(180px, 1fr) 100px 140px 150px auto;
   align-items: end;
+}
+
+.erp-invoice-builder {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.75fr);
+  grid-template-areas:
+    'header summary'
+    'detail summary';
+  gap: 16px;
+  align-items: start;
+}
+
+.erp-invoice-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+}
+
+.erp-invoice-card--header {
+  grid-area: header;
+}
+
+.erp-invoice-card--detail {
+  grid-area: detail;
+}
+
+.erp-invoice-summary {
+  position: sticky;
+  top: 22px;
+  grid-area: summary;
+}
+
+.erp-invoice-header-grid {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) minmax(150px, 0.8fr) minmax(150px, 0.8fr);
+  gap: 12px;
+}
+
+.erp-customer-snapshot,
+.erp-invoice-empty {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.14);
+  border-radius: var(--radius-md);
+  background: rgba(231, 243, 239, 0.58);
+}
+
+.erp-customer-snapshot strong,
+.erp-detail-row strong,
+.erp-total-row strong {
+  color: var(--ink);
+}
+
+.erp-customer-snapshot span,
+.erp-customer-snapshot small,
+.erp-invoice-empty,
+.erp-detail-row small,
+.erp-total-row span {
+  color: var(--muted);
+}
+
+.erp-detail-entry {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) 120px auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.erp-detail-table {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(19, 37, 33, 0.1);
+  border-radius: var(--radius-md);
+  background: #fff;
+}
+
+.erp-detail-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.4fr) 100px 120px 130px auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.08);
+}
+
+.erp-detail-row:last-child {
+  border-bottom: 0;
+}
+
+.erp-detail-row--head {
+  background: rgba(231, 243, 239, 0.72);
+  color: var(--primary-strong);
+  font-size: 0.74rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.erp-total-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(19, 37, 33, 0.08);
+}
+
+.erp-total-row--strong {
+  color: var(--primary-strong);
+  font-size: 1.15rem;
+}
+
+.erp-total-row--strong strong {
+  color: var(--primary-strong);
 }
 
 .erp-table-wrap {
@@ -2221,6 +2437,10 @@ body.modal-open {
   .erp-dashboard-grid,
   .erp-form-grid,
   .erp-inline-form,
+  .erp-invoice-builder,
+  .erp-invoice-header-grid,
+  .erp-detail-entry,
+  .erp-detail-row,
   .erp-kpi-grid,
   .filter-bar,
   .lead-form {
@@ -2235,6 +2455,19 @@ body.modal-open {
   .erp-sidebar {
     position: static;
     max-height: none;
+  }
+
+  .erp-shell.is-sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .erp-shell.is-sidebar-collapsed .erp-sidebar {
+    max-height: 88px;
+    overflow: hidden;
+  }
+
+  .erp-invoice-summary {
+    position: static;
   }
 
   .erp-header,

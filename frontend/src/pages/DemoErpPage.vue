@@ -119,6 +119,7 @@ const busy = ref(false)
 const loginError = ref('')
 const appError = ref('')
 const activeModule = ref('dashboard')
+const sidebarOpen = ref(true)
 const user = ref(null)
 const loginForm = ref({ ...defaultCredentials })
 const dashboard = ref(null)
@@ -138,14 +139,36 @@ const formState = ref({
 })
 const invoiceForm = ref({
   customerId: '',
-  productId: '',
-  quantity: 1,
   status: 'pending',
   dueDate: '',
+  detailProductId: '',
+  detailQuantity: 1,
+  items: [],
 })
 
 const isAuthenticated = computed(() => !!user.value)
 const activeConfig = computed(() => moduleConfigs[activeModule.value])
+const selectedInvoiceCustomer = computed(() => data.value.customers.find((customer) => customer.id === invoiceForm.value.customerId))
+const invoiceDetailRows = computed(() =>
+  invoiceForm.value.items.map((item) => {
+    const product = findProduct(item.productId)
+    const unitPrice = Number(product?.price || 0)
+
+    return {
+      ...item,
+      product,
+      productName: product?.name || 'Producto no disponible',
+      sku: product?.sku || 'Sin SKU',
+      stock: Number(product?.stock || 0),
+      unitPrice,
+      lineTotal: unitPrice * Number(item.quantity || 0),
+    }
+  }),
+)
+const invoiceSubtotal = computed(() => invoiceDetailRows.value.reduce((total, item) => total + item.lineTotal, 0))
+const invoiceTax = computed(() => Number((invoiceSubtotal.value * 0.12).toFixed(2)))
+const invoiceTotal = computed(() => Number((invoiceSubtotal.value + invoiceTax.value).toFixed(2)))
+const canEmitInvoice = computed(() => Boolean(invoiceForm.value.customerId && invoiceForm.value.items.length))
 
 async function boot() {
   const token = getErpSessionToken()
@@ -203,6 +226,10 @@ async function loadAll() {
 function setModule(moduleKey) {
   activeModule.value = moduleKey
   appError.value = ''
+}
+
+function toggleSidebar() {
+  sidebarOpen.value = !sidebarOpen.value
 }
 
 function statusLabel(value) {
@@ -340,7 +367,67 @@ async function removeRecord(resource, item) {
   }
 }
 
+function findProduct(productId) {
+  return data.value.products.find((product) => product.id === productId)
+}
+
+function addInvoiceItem() {
+  appError.value = ''
+  const product = findProduct(invoiceForm.value.detailProductId)
+  const quantity = Number(invoiceForm.value.detailQuantity || 0)
+
+  if (!product) {
+    appError.value = 'Selecciona un producto para agregarlo al detalle.'
+    return
+  }
+
+  if (quantity < 1) {
+    appError.value = 'La cantidad debe ser mayor a cero.'
+    return
+  }
+
+  const existing = invoiceForm.value.items.find((item) => item.productId === product.id)
+  const requestedQuantity = Number(existing?.quantity || 0) + quantity
+
+  if (requestedQuantity > Number(product.stock || 0)) {
+    appError.value = 'No hay stock suficiente para ' + product.name + '. Disponible: ' + product.stock + '.'
+    return
+  }
+
+  if (existing) {
+    existing.quantity = requestedQuantity
+  } else {
+    invoiceForm.value.items.push({
+      productId: product.id,
+      quantity,
+    })
+  }
+
+  invoiceForm.value.detailProductId = ''
+  invoiceForm.value.detailQuantity = 1
+}
+
+function removeInvoiceItem(productId) {
+  invoiceForm.value.items = invoiceForm.value.items.filter((item) => item.productId !== productId)
+}
+
+function resetInvoiceForm() {
+  invoiceForm.value = {
+    customerId: '',
+    status: 'pending',
+    dueDate: '',
+    detailProductId: '',
+    detailQuantity: 1,
+    items: [],
+  }
+}
+
 async function createInvoice() {
+  if (!canEmitInvoice.value) {
+    appError.value = 'Completa la cabecera y agrega al menos un producto al detalle.'
+    return
+  }
+
   busy.value = true
   appError.value = ''
 
@@ -349,14 +436,12 @@ async function createInvoice() {
       customerId: invoiceForm.value.customerId,
       status: invoiceForm.value.status,
       dueDate: invoiceForm.value.dueDate || undefined,
-      items: [
-        {
-          productId: invoiceForm.value.productId,
-          quantity: Number(invoiceForm.value.quantity || 1),
-        },
-      ],
+      items: invoiceForm.value.items.map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity || 1),
+      })),
     })
-    invoiceForm.value = { customerId: '', productId: '', quantity: 1, status: 'pending', dueDate: '' }
+    resetInvoiceForm()
     await loadAll()
   } catch (error) {
     appError.value = error.message
@@ -421,20 +506,29 @@ onMounted(boot)
       </div>
     </section>
 
-    <section v-else class="erp-shell">
-      <aside class="erp-sidebar">
+    <section v-else class="erp-shell" :class="{ 'is-sidebar-collapsed': !sidebarOpen }">
+      <aside class="erp-sidebar" :aria-expanded="sidebarOpen">
         <div class="erp-brand">
           <span>ERP</span>
-          <div>
+          <div class="erp-brand__text">
             <strong>EasyERP Demo</strong>
             <small>Aplicacion separada</small>
           </div>
+          <button class="erp-sidebar-toggle" type="button" :aria-label="sidebarOpen ? 'Cerrar menu' : 'Abrir menu'" @click="toggleSidebar">
+            <span>{{ sidebarOpen ? 'Cerrar menu' : 'Abrir menu' }}</span>
+            <b>{{ sidebarOpen ? '-' : '+' }}</b>
+          </button>
         </div>
 
-        <button v-for="module in modules" :key="module.key" class="erp-nav-button" :class="{ 'is-active': activeModule === module.key }" type="button" @click="setModule(module.key)">
-          <strong>{{ module.label }}</strong>
-          <small>{{ module.description }}</small>
-        </button>
+        <nav class="erp-nav" aria-label="Modulos ERP">
+          <button v-for="module in modules" :key="module.key" class="erp-nav-button" :class="{ 'is-active': activeModule === module.key }" type="button" :title="module.label" @click="setModule(module.key)">
+            <span class="erp-nav-button__letter">{{ module.label.slice(0, 2) }}</span>
+            <span class="erp-nav-button__content">
+              <strong>{{ module.label }}</strong>
+              <small>{{ module.description }}</small>
+            </span>
+          </button>
+        </nav>
 
         <div class="erp-user-card">
           <strong>{{ user.fullName }}</strong>
@@ -450,7 +544,12 @@ onMounted(boot)
             <p class="section__eyebrow">Sistema demo</p>
             <h1>{{ modules.find((item) => item.key === activeModule)?.label }}</h1>
           </div>
-          <a class="button button--secondary" href="/" target="_blank" rel="noopener noreferrer"> Ver landing </a>
+          <div class="erp-header__actions">
+            <button class="button button--secondary" type="button" @click="toggleSidebar">
+              {{ sidebarOpen ? 'Ocultar menu' : 'Mostrar menu' }}
+            </button>
+            <a class="button button--secondary" href="/" target="_blank" rel="noopener noreferrer"> Ver landing </a>
+          </div>
         </header>
 
         <p v-if="appError" class="form-message form-message--error">{{ appError }}</p>
@@ -498,35 +597,122 @@ onMounted(boot)
             </div>
           </div>
 
-          <form class="erp-inline-form" @submit.prevent="createInvoice">
-            <select v-model="invoiceForm.customerId" required>
-              <option value="">Cliente</option>
-              <option v-for="customer in data.customers" :key="customer.id" :value="customer.id">
-                {{ customer.company || customer.name }}
-              </option>
-            </select>
-            <select v-model="invoiceForm.productId" required>
-              <option value="">Producto</option>
-              <option v-for="product in data.products" :key="product.id" :value="product.id">{{ product.name }} - stock {{ product.stock }}</option>
-            </select>
-            <input v-model="invoiceForm.quantity" type="number" min="1" placeholder="Cantidad" required />
-            <select v-model="invoiceForm.status">
-              <option v-for="status in invoiceStatusOptions" :key="status.value" :value="status.value">
-                {{ status.label }}
-              </option>
-            </select>
-            <input v-model="invoiceForm.dueDate" type="date" />
-            <button class="button button--primary" type="submit" :disabled="busy">Crear factura</button>
+          <form class="erp-invoice-builder" @submit.prevent="createInvoice">
+            <section class="erp-invoice-card erp-invoice-card--header">
+              <div>
+                <p class="section__eyebrow">Cabecera</p>
+                <h3>Datos generales de la factura</h3>
+              </div>
+
+              <div class="erp-invoice-header-grid">
+                <label>
+                  <span>Cliente</span>
+                  <select v-model="invoiceForm.customerId" required>
+                    <option value="">Selecciona un cliente</option>
+                    <option v-for="customer in data.customers" :key="customer.id" :value="customer.id">
+                      {{ customer.company || customer.name }}
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Estado de cobro</span>
+                  <select v-model="invoiceForm.status">
+                    <option v-for="status in invoiceStatusOptions" :key="status.value" :value="status.value">
+                      {{ status.label }}
+                    </option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Vencimiento</span>
+                  <input v-model="invoiceForm.dueDate" type="date" />
+                </label>
+              </div>
+
+              <div v-if="selectedInvoiceCustomer" class="erp-customer-snapshot">
+                <strong>{{ selectedInvoiceCustomer.company || selectedInvoiceCustomer.name }}</strong>
+                <span>{{ selectedInvoiceCustomer.email }} - {{ selectedInvoiceCustomer.phone }}</span>
+                <small>RUC/ID: {{ selectedInvoiceCustomer.taxId || 'No registrado' }}</small>
+              </div>
+            </section>
+
+            <section class="erp-invoice-card erp-invoice-card--detail">
+              <div>
+                <p class="section__eyebrow">Detalle</p>
+                <h3>Productos a facturar</h3>
+              </div>
+
+              <div class="erp-detail-entry">
+                <label>
+                  <span>Producto</span>
+                  <select v-model="invoiceForm.detailProductId">
+                    <option value="">Selecciona un producto</option>
+                    <option v-for="product in data.products" :key="product.id" :value="product.id" :disabled="product.status !== 'active' || product.stock <= 0">{{ product.name }} - {{ formatCurrency(product.price) }} - stock {{ product.stock }}</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Cantidad</span>
+                  <input v-model.number="invoiceForm.detailQuantity" type="number" min="1" />
+                </label>
+
+                <button class="button button--secondary" type="button" @click="addInvoiceItem">Agregar al detalle</button>
+              </div>
+
+              <div v-if="invoiceDetailRows.length" class="erp-detail-table">
+                <div class="erp-detail-row erp-detail-row--head">
+                  <span>Producto</span>
+                  <span>Cantidad</span>
+                  <span>Precio</span>
+                  <span>Total linea</span>
+                  <span></span>
+                </div>
+                <div v-for="item in invoiceDetailRows" :key="item.productId" class="erp-detail-row">
+                  <div>
+                    <strong>{{ item.productName }}</strong>
+                    <small>{{ item.sku }} - stock actual {{ item.stock }}</small>
+                  </div>
+                  <span>{{ item.quantity }}</span>
+                  <span>{{ formatCurrency(item.unitPrice) }}</span>
+                  <strong>{{ formatCurrency(item.lineTotal) }}</strong>
+                  <button class="button button--danger erp-small-button" type="button" @click="removeInvoiceItem(item.productId)">Quitar</button>
+                </div>
+              </div>
+              <p v-else class="erp-invoice-empty">Agrega productos al detalle para calcular el subtotal, IVA y total antes de emitir.</p>
+            </section>
+
+            <aside class="erp-invoice-card erp-invoice-summary">
+              <p class="section__eyebrow">Resumen</p>
+              <h3>Total de emision</h3>
+              <div class="erp-total-row">
+                <span>Subtotal</span>
+                <strong>{{ formatCurrency(invoiceSubtotal) }}</strong>
+              </div>
+              <div class="erp-total-row">
+                <span>IVA 12%</span>
+                <strong>{{ formatCurrency(invoiceTax) }}</strong>
+              </div>
+              <div class="erp-total-row erp-total-row--strong">
+                <span>Total</span>
+                <strong>{{ formatCurrency(invoiceTotal) }}</strong>
+              </div>
+              <button class="button button--primary" type="submit" :disabled="busy || !canEmitInvoice">
+                {{ busy ? 'Emitiendo...' : 'Emitir factura' }}
+              </button>
+              <button class="button button--secondary" type="button" @click="resetInvoiceForm">Limpiar factura</button>
+              <p>Al emitir, el ERP descuenta inventario. Si la factura se cancela o elimina, el stock se repone automaticamente.</p>
+            </aside>
           </form>
 
           <div class="erp-table-wrap">
             <table class="erp-table">
               <thead>
                 <tr>
-                  <th>Factura</th>
+                  <th>Cabecera</th>
                   <th>Cliente</th>
-                  <th>Items</th>
-                  <th>Total</th>
+                  <th>Detalle</th>
+                  <th>Valores</th>
                   <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
@@ -535,13 +721,18 @@ onMounted(boot)
                 <tr v-for="invoice in data.invoices" :key="invoice.id">
                   <td>
                     <strong>{{ invoice.number }}</strong>
-                    <small>{{ formatDate(invoice.createdAt) }}</small>
+                    <small>Emitida: {{ formatDate(invoice.createdAt) }}</small>
+                    <small>Vence: {{ formatDate(invoice.dueDate) }}</small>
                   </td>
                   <td>{{ invoice.customerName }}</td>
                   <td>
-                    <small v-for="item in invoice.items" :key="`${invoice.id}-${item.productId}`"> {{ item.quantity }} x {{ item.productName }} </small>
+                    <small v-for="item in invoice.items" :key="invoice.id + '-' + item.productId"> {{ item.quantity }} x {{ item.productName }} </small>
                   </td>
-                  <td>{{ formatCurrency(invoice.total) }}</td>
+                  <td>
+                    <strong>{{ formatCurrency(invoice.total) }}</strong>
+                    <small>Subtotal {{ formatCurrency(invoice.subtotal) }}</small>
+                    <small>IVA {{ formatCurrency(invoice.tax) }}</small>
+                  </td>
                   <td>
                     <select :value="invoice.status" @change="updateInvoiceStatus(invoice, $event.target.value)">
                       <option v-for="status in invoiceStatusOptions" :key="status.value" :value="status.value">
