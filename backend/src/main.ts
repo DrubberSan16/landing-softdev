@@ -8,7 +8,7 @@ async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const { port, apiPrefix, swaggerPath } = configureApp(app);
 
-  await app.listen(port);
+  await app.listen(port, '127.0.0.1');
 
   logger.log(`Backend listo en http://localhost:${port}/${apiPrefix}`);
   logger.log(`Swagger disponible en http://localhost:${port}/${swaggerPath}`);
