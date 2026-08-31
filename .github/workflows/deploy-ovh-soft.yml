@@ -1,0 +1,86 @@
+name: Deploy landing to OVH Softdev
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: production-ovh-softdev
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate frontend and backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22.22.1
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Validate backend
+        working-directory: backend
+        run: |
+          npm ci
+          npm test -- --runInBand
+          npm run build
+
+      - name: Validate frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  deploy:
+    name: Deploy production
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Validate SSH credential
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OVH_SOFT_SSH_KEY }}
+        run: |
+          if [[ -z "$SSH_PRIVATE_KEY" ]]; then
+            echo "Missing repository or production environment secret: OVH_SOFT_SSH_KEY"
+            exit 1
+          fi
+
+      - name: Configure SSH
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OVH_SOFT_SSH_KEY }}
+        run: |
+          install -m 700 -d "$HOME/.ssh"
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$HOME/.ssh/id_ed25519"
+          chmod 600 "$HOME/.ssh/id_ed25519"
+          cat > "$HOME/.ssh/known_hosts" <<'KNOWN_HOSTS'
+          158.69.221.98 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINw3QUtBIWYJhCIl6b6jgSUnYdIhI3qStReUAtvHcWvZ
+          KNOWN_HOSTS
+          chmod 600 "$HOME/.ssh/known_hosts"
+
+      - name: Update application on OVH
+        shell: bash
+        run: |
+          ssh \
+            -i "$HOME/.ssh/id_ed25519" \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            ubuntu@158.69.221.98 \
+            deploy

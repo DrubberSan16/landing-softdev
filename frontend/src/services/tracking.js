@@ -12,8 +12,8 @@ export async function trackPageVisit({ path, pageType, routeName, projectSlug, p
       projectSlug,
       projectPublicId,
       deviceType: /mobile/i.test(navigator.userAgent) ? 'mobile' : 'desktop',
-      browserName: navigator.userAgent,
-      osName: navigator.platform,
+      browserName: navigator.userAgent.slice(0, 60),
+      osName: navigator.platform.slice(0, 60),
       referrerUrl: document.referrer || undefined,
     })
   } catch (error) {
