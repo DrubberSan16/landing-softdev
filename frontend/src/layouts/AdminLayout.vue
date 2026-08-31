@@ -1,6 +1,27 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import {
+  BarChart3,
+  BellRing,
+  Boxes,
+  ChevronDown,
+  ChevronUp,
+  CircleUserRound,
+  ExternalLink,
+  FolderKanban,
+  Gauge,
+  Layers3,
+  ListChecks,
+  LogOut,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings2,
+  ShieldCheck,
+  Sparkles,
+  Tags,
+  UsersRound,
+} from 'lucide-vue-next'
 import { adminApi } from '../services/api'
 import { appConfig } from '../services/config'
 import { clearAdminSessionToken } from '../utils/admin-session'
@@ -10,20 +31,20 @@ const route = useRoute()
 const loading = ref(true)
 const admin = ref(null)
 const errorMessage = ref('')
-const sidebarOpen = ref(true)
+const sidebarOpen = ref(window.matchMedia('(min-width: 1181px)').matches)
 const openMenuGroups = ref({
-  portfolio: true,
-  commercial: true,
-  security: true,
-  system: true,
+  portfolio: false,
+  commercial: false,
+  security: false,
+  system: false,
 })
 
 const menuSections = [
   {
     type: 'item',
     label: 'Dashboard',
-    description: 'Componente Dashboard',
-    icon: 'DB',
+    description: 'Vista general',
+    icon: Gauge,
     to: '/admin/dashboard',
   },
   {
@@ -31,11 +52,11 @@ const menuSections = [
     key: 'portfolio',
     label: 'Portafolio',
     description: 'Demos y contenido publico',
-    icon: 'PO',
+    icon: FolderKanban,
     children: [
-      { label: 'Proyectos', description: 'Portafolio y demos', icon: 'PR', to: '/admin/proyectos' },
-      { label: 'Categorias', description: 'Organiza el portafolio', icon: 'CA', to: '/admin/categorias' },
-      { label: 'Tecnologias', description: 'Stack de proyectos', icon: 'TE', to: '/admin/tecnologias' },
+      { label: 'Proyectos', description: 'Portafolio y demos', icon: Layers3, to: '/admin/proyectos' },
+      { label: 'Categorias', description: 'Organiza el portafolio', icon: Tags, to: '/admin/categorias' },
+      { label: 'Tecnologias', description: 'Stack de proyectos', icon: Boxes, to: '/admin/tecnologias' },
     ],
   },
   {
@@ -43,10 +64,10 @@ const menuSections = [
     key: 'commercial',
     label: 'Comercial',
     description: 'Embudo y rendimiento',
-    icon: 'CO',
+    icon: BarChart3,
     children: [
-      { label: 'Solicitudes', description: 'Formularios de Contactenos', icon: 'SO', to: '/admin/contactos' },
-      { label: 'Rendimiento', description: 'Visitas y conversiones', icon: 'RE', to: '/admin/metricas' },
+      { label: 'Solicitudes', description: 'Formularios de contacto', icon: ListChecks, to: '/admin/contactos' },
+      { label: 'Rendimiento', description: 'Visitas y conversiones', icon: BarChart3, to: '/admin/metricas' },
     ],
   },
   {
@@ -54,10 +75,10 @@ const menuSections = [
     key: 'security',
     label: 'Administracion',
     description: 'Acceso y permisos',
-    icon: 'AD',
+    icon: ShieldCheck,
     children: [
-      { label: 'Usuarios', description: 'Acceso administrativo', icon: 'US', to: '/admin/usuarios' },
-      { label: 'Roles y permisos', description: 'Capacidades de acceso', icon: 'RO', to: '/admin/roles' },
+      { label: 'Usuarios', description: 'Acceso administrativo', icon: UsersRound, to: '/admin/usuarios' },
+      { label: 'Roles y permisos', description: 'Capacidades de acceso', icon: ShieldCheck, to: '/admin/roles' },
     ],
   },
   {
@@ -65,10 +86,10 @@ const menuSections = [
     key: 'system',
     label: 'Sistema',
     description: 'Mensajeria y auditoria',
-    icon: 'SI',
+    icon: Settings2,
     children: [
-      { label: 'Notificaciones', description: 'Envios automaticos', icon: 'NO', to: '/admin/notificaciones' },
-      { label: 'Auditoria', description: 'Historial de cambios', icon: 'AU', to: '/admin/auditoria' },
+      { label: 'Notificaciones', description: 'Envios automaticos', icon: BellRing, to: '/admin/notificaciones' },
+      { label: 'Auditoria', description: 'Historial de cambios', icon: CircleUserRound, to: '/admin/auditoria' },
     ],
   },
 ]
@@ -110,6 +131,11 @@ function isMenuGroupActive(section) {
   return section.children?.some((item) => isMenuItemActive(item.to))
 }
 
+function expandActiveMenu() {
+  const activeGroup = menuSections.find((section) => section.type === 'group' && isMenuGroupActive(section))
+  if (activeGroup) openMenuGroups.value[activeGroup.key] = true
+}
+
 async function loadProfile() {
   loading.value = true
   errorMessage.value = ''
@@ -136,11 +162,20 @@ async function handleLogout() {
   }
 }
 
-onMounted(loadProfile)
+watch(() => route.path, () => {
+  expandActiveMenu()
+  if (window.matchMedia('(max-width: 1180px)').matches) sidebarOpen.value = false
+})
+
+onMounted(() => {
+  expandActiveMenu()
+  loadProfile()
+})
 </script>
 
 <template>
   <div class="admin-shell" :class="{ 'is-sidebar-collapsed': !sidebarOpen }">
+    <a class="admin-skip-link" href="#admin-content">Saltar al contenido</a>
     <aside class="admin-sidebar" :aria-expanded="sidebarOpen">
       <div class="admin-sidebar__top">
         <RouterLink class="admin-profile" to="/admin/dashboard">
@@ -155,24 +190,25 @@ onMounted(loadProfile)
 
         <button class="admin-sidebar-toggle" type="button" :aria-label="sidebarOpen ? 'Cerrar menu' : 'Abrir menu'" @click="toggleSidebar">
           <span>{{ sidebarOpen ? 'Cerrar' : 'Abrir' }}</span>
-          <b>{{ sidebarOpen ? '-' : '+' }}</b>
+          <PanelLeftClose v-if="sidebarOpen" :size="18" aria-hidden="true" />
+          <PanelLeftOpen v-else :size="18" aria-hidden="true" />
         </button>
       </div>
 
       <div class="admin-account-card">
-        <span>CUENTA ACTIVA</span>
+        <span><i aria-hidden="true"></i> CUENTA ACTIVA</span>
         <strong>{{ admin?.email || 'Validando sesion...' }}</strong>
       </div>
 
       <div class="admin-welcome-link">
-        <span class="admin-nav-icon">IN</span>
-        <strong>Bienvenid@</strong>
+        <span class="admin-nav-icon"><Sparkles :size="17" aria-hidden="true" /></span>
+        <span><strong>Centro de control</strong><small>Gestiona tu ecosistema</small></span>
       </div>
 
       <nav class="admin-nav" aria-label="Navegacion administrativa">
         <template v-for="section in menuSections" :key="section.key || section.to">
           <RouterLink v-if="section.type === 'item'" class="admin-nav-item" :class="{ 'is-active': isMenuItemActive(section.to) }" :to="section.to" :title="section.label">
-            <span class="admin-nav-icon">{{ section.icon }}</span>
+            <span class="admin-nav-icon"><component :is="section.icon" :size="18" :stroke-width="1.8" aria-hidden="true" /></span>
             <span class="admin-nav-copy">
               <strong>{{ section.label }}</strong>
               <small>{{ section.description }}</small>
@@ -180,18 +216,18 @@ onMounted(loadProfile)
           </RouterLink>
 
           <div v-else class="admin-nav-group" :class="{ 'is-open': isMenuGroupOpen(section.key), 'is-active': isMenuGroupActive(section) }">
-            <button class="admin-nav-item admin-nav-item--group" type="button" :title="section.label" @click="toggleMenuGroup(section.key)">
-              <span class="admin-nav-icon">{{ section.icon }}</span>
+            <button class="admin-nav-item admin-nav-item--group" type="button" :title="section.label" :aria-expanded="isMenuGroupOpen(section.key)" :aria-controls="`admin-menu-${section.key}`" @click="toggleMenuGroup(section.key)">
+              <span class="admin-nav-icon"><component :is="section.icon" :size="18" :stroke-width="1.8" aria-hidden="true" /></span>
               <span class="admin-nav-copy">
                 <strong>{{ section.label }}</strong>
                 <small>{{ section.description }}</small>
               </span>
-              <span class="admin-nav-caret">{{ isMenuGroupOpen(section.key) ? '^' : 'v' }}</span>
+              <span class="admin-nav-caret"><ChevronUp v-if="isMenuGroupOpen(section.key)" :size="16" aria-hidden="true" /><ChevronDown v-else :size="16" aria-hidden="true" /></span>
             </button>
 
-            <div v-if="isMenuGroupOpen(section.key)" class="admin-nav-children">
+            <div v-if="isMenuGroupOpen(section.key)" :id="`admin-menu-${section.key}`" class="admin-nav-children">
               <RouterLink v-for="child in section.children" :key="child.to" class="admin-nav-child" :class="{ 'is-active': isMenuItemActive(child.to) }" :to="child.to" :title="child.label">
-                <span class="admin-nav-child__icon">{{ child.icon }}</span>
+                <span class="admin-nav-child__icon"><component :is="child.icon" :size="16" :stroke-width="1.8" aria-hidden="true" /></span>
                 <span>
                   <strong>{{ child.label }}</strong>
                   <small>{{ child.description }}</small>
@@ -205,19 +241,24 @@ onMounted(loadProfile)
       <div class="admin-sidebar-session" v-if="admin">
         <span>Sesion</span>
         <strong>{{ admin.fullName }}</strong>
-        <button class="button button--secondary" type="button" @click="handleLogout">Cerrar sesion</button>
+        <button class="button button--secondary" type="button" @click="handleLogout"><LogOut :size="16" aria-hidden="true" /> Cerrar sesion</button>
       </div>
     </aside>
 
-    <main class="admin-main">
+    <main id="admin-content" class="admin-main">
       <div class="admin-topbar">
         <div>
           <p class="section__eyebrow">Panel privado</p>
           <strong>{{ activeModuleLabel }}</strong>
         </div>
-        <button class="button button--secondary" type="button" @click="toggleSidebar">
-          {{ sidebarOpen ? 'Ocultar menu' : 'Mostrar menu' }}
-        </button>
+        <div class="admin-topbar__actions">
+          <RouterLink class="button button--secondary" to="/" target="_blank" rel="noopener noreferrer">Ver sitio <ExternalLink :size="15" aria-hidden="true" /></RouterLink>
+          <button class="button button--secondary" type="button" @click="toggleSidebar">
+            <PanelLeftClose v-if="sidebarOpen" :size="16" aria-hidden="true" />
+            <PanelLeftOpen v-else :size="16" aria-hidden="true" />
+            {{ sidebarOpen ? 'Ocultar menu' : 'Mostrar menu' }}
+          </button>
+        </div>
       </div>
 
       <div v-if="loading" class="empty-state">

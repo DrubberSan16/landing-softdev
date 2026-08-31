@@ -2,6 +2,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import CircuitBoard from '../components/CircuitBoard.vue'
+import InteractiveDashboard from '../components/InteractiveDashboard.vue'
+import InteractiveOrbit from '../components/InteractiveOrbit.vue'
 import LeadFormCard from '../components/LeadFormCard.vue'
 import { initLandingMotion } from '../composables/useLandingMotion'
 import { usePublicTracking } from '../composables/usePublicTracking'
@@ -105,6 +107,19 @@ onBeforeUnmount(() => stopMotion())
             <div class="impact-card__visual" :class="`impact-card__visual--${card.icon}`" aria-hidden="true"><span></span><span></span><span></span></div>
             <div><h3>{{ card.title }}</h3><p>{{ card.body }}</p></div>
           </article>
+        </div>
+      </div>
+    </section>
+
+    <section id="experiencia" class="landing-section landing-section--experience">
+      <div class="landing-container">
+        <div class="section-heading section-heading--split js-reveal">
+          <div><p class="section-kicker">Software que se entiende</p><h2>No solo lo mostramos.<br /><em>Te dejamos sentir cómo funciona.</em></h2></div>
+          <p>Explora una ruta de trabajo conectada y una interfaz que cambia según el foco. Cada movimiento explica cómo convertimos complejidad en decisiones claras.</p>
+        </div>
+        <div class="experience-grid">
+          <InteractiveOrbit />
+          <InteractiveDashboard />
         </div>
       </div>
     </section>

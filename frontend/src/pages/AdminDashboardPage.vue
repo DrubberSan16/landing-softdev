@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { BellRing, Eye, MousePointerClick, Radio, Sparkles, UsersRound } from 'lucide-vue-next'
 import AdminPanelList from '../components/admin/AdminPanelList.vue'
 import StatCard from '../components/StatCard.vue'
 import { adminApi } from '../services/api'
@@ -32,31 +33,43 @@ const stats = computed(() => {
       label: 'Visitantes unicos',
       value: siteMetrics.totalUniqueVisitorsSite || 0,
       caption: 'alcance acumulado del sitio',
+      icon: UsersRound,
+      tone: 'blue',
     },
     {
       label: 'Sesiones',
       value: siteMetrics.totalSessionsSite || 0,
       caption: 'actividad registrada en la landing',
+      icon: Radio,
+      tone: 'teal',
     },
     {
       label: 'Vistas',
       value: siteMetrics.totalPageViewsSite || 0,
       caption: 'paginas consultadas por visitantes',
+      icon: Eye,
+      tone: 'violet',
     },
     {
       label: 'Clicks demo',
       value: siteMetrics.totalDemoClicksSite || 0,
       caption: 'interes funcional sobre demos',
+      icon: MousePointerClick,
+      tone: 'orange',
     },
     {
       label: 'Leads',
       value: siteMetrics.totalContactRequestsSite || 0,
       caption: 'solicitudes comerciales registradas',
+      icon: Sparkles,
+      tone: 'rose',
     },
     {
       label: 'Pendientes',
       value: queue.pending || 0,
       caption: 'items en cola de notificacion',
+      icon: BellRing,
+      tone: 'amber',
     },
   ]
 })
@@ -121,12 +134,12 @@ onMounted(async () => {
     <header class="admin-page__header">
       <div>
         <p class="section__eyebrow">Dashboard ejecutivo</p>
-        <h1>Resumen operativo del sitio, los demos y el embudo comercial.</h1>
+        <h1>Una lectura clara de lo que está pasando.</h1>
       </div>
-      <p>
-        Esta vista concentra alcance del sitio, interes por demos, leads recientes y estado de las
-        notificaciones.
-      </p>
+      <div class="admin-page__summary">
+        <span class="admin-live-status"><i aria-hidden="true"></i> Datos operativos activos</span>
+        <p>Alcance, interés comercial y estado de tus automatizaciones en un solo lugar.</p>
+      </div>
     </header>
 
     <div v-if="loading" class="empty-state">
@@ -145,6 +158,8 @@ onMounted(async () => {
           :label="stat.label"
           :value="stat.value"
           :caption="stat.caption"
+          :icon="stat.icon"
+          :tone="stat.tone"
         />
       </section>
 
