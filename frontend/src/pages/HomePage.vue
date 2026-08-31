@@ -172,4 +172,4 @@ onBeforeUnmount(() => stopMotion())
   </main>
 </template>
 
-<style scoped src="../landing.css"></style>
+<style src="../landing.css"></style>
